@@ -12,16 +12,24 @@ namespace Car
 {
     public partial class Form1 : Form
     {
+        private SensorFusion _sf;
+
         public Form1()
         {
             InitializeComponent();
+            _sf = new SensorFusion();
         }
 
         private void btnStart_Click(object sender, EventArgs e)
         {
+            /*
             btnStop.Enabled = true;
             btnStart.Enabled = false;
             timer1.Enabled = true;
+            */
+            double[] ret = GPSConverter.GetTWD97(24.82831645, 121.01274986);
+            lbInfo.Items.Add(ret[0]);
+            lbInfo.Items.Add(ret[1]);
         }
 
         private void btnStop_Click(object sender, EventArgs e)
