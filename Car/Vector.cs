@@ -21,6 +21,8 @@ namespace Car
         public Vector(int n)
         {
             Value = new double[n];
+            for (int i = 0; i < n; i++)
+                Value[i] = 0;
         }
 
         public Vector(double x, double y, double z) : this(3)
@@ -58,15 +60,62 @@ namespace Car
             {
                 Value[i] /= factor;
             }
-        }
+        }        
 
-        public static Vector Cross(Vector a, Vector b)
+        public double GetMagnitude()
         {
-            return new Vector(
-                a.Value[1] * b.Value[2] - a.Value[2] * b.Value[1],
-                a.Value[2] * b.Value[0] - a.Value[0] * b.Value[2],
-                a.Value[0] * b.Value[1] - a.Value[1] * b.Value[0]);
+            double ret = 0;
+            for (int i = 0; i < Length; i++)
+                ret += Math.Pow(Value[i], 2);
+            return Math.Sqrt(ret);
         }
 
+        /// <summary>
+        /// Cross product.
+        /// </summary>
+        /// <param name="a"></param>
+        /// <param name="b"></param>
+        /// <returns></returns>
+        public static Vector operator % (Vector a, Vector b)
+        {
+            if (a.Length != 3 && b.Length != 3)
+                throw new NotSupportedException();
+            return new Vector(
+                a[1] * b[2] - a[2] * b[1],
+                a[2] * b[0] - a[0] * b[2],
+                a[0] * b[1] - a[1] * b[0]);
+        }
+
+        public static Vector operator + (Vector a, Vector b)
+        {
+            if (a.Length != b.Length)
+                throw new InvalidOperationException();
+            Vector ret = new Vector(a.Length);
+            for (int i = 0; i < ret.Length; i++)
+                ret[i] = a[i] + b[i];
+            return ret;
+        }
+
+        public static Vector operator - (Vector a, Vector b)
+        {
+            if (a.Length != b.Length)
+                throw new InvalidOperationException();
+            Vector ret = new Vector(a.Length);
+            for (int i = 0; i < ret.Length; i++)
+                ret[i] = a[i] - b[i];
+            return ret;
+        }
+
+        public double this[int index]
+        {
+            get
+            {
+                return Value[index];
+            }
+            set
+            {
+                Value[index] = value;
+            }
+        }
     }
 }

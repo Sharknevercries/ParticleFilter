@@ -33,8 +33,10 @@ namespace Car
 
         private void timer1_Tick(object sender, EventArgs e)
         {
-            // TODO: FUck
-            lbInfo.Items.Add("Test");
+            // TODO: Load data from ADB.
+            // Calculate accE
+            // convert GPS into grid position
+            // 
         }
     }
 }

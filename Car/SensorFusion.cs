@@ -8,22 +8,117 @@ namespace Car
 {
     class SensorFusion
     {
-        public static Matrix GetRotationMatrix(Vector gravity, Vector geomanetic)
+        private long _prevTimeStamp;
+        private bool _initState;
+
+        private Matrix _gyroMatrix;
+        private Vector _gyroOrientation;
+        private List<Vector> _prevAcceleration;
+        
+        public SensorFusion()
+        {
+            Initialize();
+        }
+
+        public void Initialize()
+        {
+            _gyroMatrix = Matrix.GetDiagonalMatrix();
+            _prevAcceleration = new List<Vector>();
+            _prevTimeStamp = 0;
+            _initState = true;
+        }
+        
+        /// <summary>
+        /// Calculate the acceleration of e-frame
+        /// </summary>
+        /// <param name="acc"></param>
+        /// <param name="gyr"></param>
+        /// <param name="mag"></param>
+        /// <param name="time_diff"></param>
+        /// <param name="filter_coef">Fusion coefficient</param>
+        /// <param name="shift_num">Find gravity from the mininmal of past acc data</param>
+        /// <returns></returns>
+        public Vector Calculate(Vector acc, Vector gyr, Vector mag, long curTimeStamp, double filter_coef = 0.99, int shift_num = 500)
+        {
+            _prevAcceleration.Add(acc);
+            if (_prevAcceleration.Count > shift_num)
+                _prevAcceleration.RemoveAt(0);
+            double minAcc = _prevAcceleration.Min(t => t.GetMagnitude());
+            Vector gravity = _prevAcceleration.Find(t => t.GetMagnitude() == minAcc);
+            Matrix rotationMatrix = GetRotationMatrix(gravity, mag);
+            Vector accMagOrientation = GetOrientation(rotationMatrix);
+
+            if (_initState)
+            {
+                Matrix initMatrix = GetRotationMatrixFromOrientation(accMagOrientation);
+                _gyroMatrix = _gyroMatrix % initMatrix;
+                _gyroOrientation = GetOrientation(_gyroMatrix);
+                _initState = false;
+            }
+
+            Vector ret = ComputeAccelerationEarth(acc, gravity);
+            Vector deltaVector = new Vector(4);
+            if (_prevTimeStamp != 0)
+            {
+                double dt = (curTimeStamp - _prevTimeStamp) / 1000000000.0;
+                deltaVector = GetRotationVectorFromGyro(gyr, dt / 2.0);
+            }
+            Matrix deltaMatrix = GetRotationMatrixFromVector(deltaVector);
+            _gyroMatrix = _gyroMatrix % deltaMatrix;
+            _gyroOrientation = GetOrientation(_gyroMatrix);
+            _prevTimeStamp = curTimeStamp;
+
+            Vector fusedOrientation = new Vector(3);
+            for (int i = 0; i < 3; i++)
+            {
+                if(_gyroOrientation[i] < -0.5 * Math.PI && accMagOrientation[i] > 0)
+                {
+                    fusedOrientation[i] = filter_coef * (_gyroOrientation[i] + 2 * Math.PI) + (1 - filter_coef) * accMagOrientation[i];
+                    if (fusedOrientation[i] > Math.PI)
+                        fusedOrientation[i] -= 2 * Math.PI;
+                }
+                else if(accMagOrientation[i] < -0.5 * Math.PI && _gyroOrientation[i] > 0)
+                {
+                    fusedOrientation[i] = filter_coef * _gyroOrientation[i] + (1 - filter_coef) * (accMagOrientation[i] + 2 * Math.PI);
+                    if (fusedOrientation[i] > Math.PI)
+                        fusedOrientation[i] -= 2 * Math.PI;
+                }
+                else
+                {
+                    fusedOrientation[i] = filter_coef * _gyroOrientation[i] + (1 - filter_coef) * accMagOrientation[i];
+                }
+            }
+            _gyroMatrix = GetRotationMatrixFromOrientation(fusedOrientation);
+            fusedOrientation.Value.CopyTo(_gyroOrientation.Value, 0);
+
+            return ret;
+        }
+
+        private Vector ComputeAccelerationEarth(Vector v, Vector gravity)
+        {
+            Vector ret = new Vector(4);
+            Vector tmp = _gyroMatrix % (v - gravity);
+            ret.Value.CopyTo(ret.Value, 0);
+            ret.Value[3] = _gyroOrientation.Value[0] * 180.0 / Math.PI;
+            return ret;
+        }
+
+        private static Matrix GetRotationMatrix(Vector gravity, Vector geomanetic)
         {
             Vector A = new Vector(gravity);
             Vector E = new Vector(geomanetic);
-            Vector H = Vector.Cross(E, A);
+            Vector H = E % A;
             double normH = H.NormalizeVector();
             if (normH < 0.1)
                 return null;
             H.Normalization();
             A.Normalization();
-            Vector M = Vector.Cross(A, H);
+            Vector M = A % H;
             Matrix ret = new Matrix(H, M, A);
             return ret;
         }
 
-        public static Vector GetRotationVectorFromGyro(Vector gyro, double time)
+        private static Vector GetRotationVectorFromGyro(Vector gyro, double time)
         {
             Vector tmp = new Vector(gyro);
             double magnitude = tmp.NormalizeVector();
@@ -34,12 +129,12 @@ namespace Car
             double cosThetaOverTwo = Math.Cos(thetaOverTwo);
             Vector ret = new Vector(4);
             for (int i = 0; i < 3; i++)
-                ret.Value[i] = sinThetaOverTwo * tmp.Value[i];
-            ret.Value[3] = cosThetaOverTwo;
+                ret[i] = sinThetaOverTwo * tmp[i];
+            ret[3] = cosThetaOverTwo;
             return ret;
         }
 
-        public static Matrix GetRotationMatrixFromOrientation(Vector a)
+        private static Matrix GetRotationMatrixFromOrientation(Vector a)
         {
             double sinX = Math.Sin(a.Value[1]);
             double cosX = Math.Cos(a.Value[1]);
@@ -59,10 +154,10 @@ namespace Car
                 new Vector(cosZ, sinZ, 0),
                 new Vector(-sinZ, cosZ, 0),
                 new Vector(0, 0, 1));
-            return Matrix.Multiple(zM, Matrix.Multiple(xM, yM));
+            return zM % (xM % yM);
         }
 
-        public static Matrix GetRotationMatrixFromVector(Vector v)
+        private static Matrix GetRotationMatrixFromVector(Vector v)
         {
             double q0 = 0;
             double q1 = v.Value[0];
@@ -93,7 +188,7 @@ namespace Car
                 new Vector(q1_q3 - q2_q0, q2_q3 + q1_q0, 1 - sq_q1 - sq_q2));
         }
 
-        public static Vector GetOrientation(Matrix r)
+        private static Vector GetOrientation(Matrix r)
         {
             Vector ret = new Vector(3);
             ret.Value[0] = Math.Atan2(r.Value[0, 1], r.Value[1, 1]);
