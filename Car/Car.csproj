@@ -67,6 +67,7 @@
     </Compile>
     <Compile Include="GPSConverter.cs" />
     <Compile Include="Matrix.cs" />
+    <Compile Include="ParticleFilter.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SensorFusion.cs" />

@@ -43,8 +43,8 @@ namespace Car
             _prevAcceleration.Add(acc);
             if (_prevAcceleration.Count > shift_num)
                 _prevAcceleration.RemoveAt(0);
-            double minAcc = _prevAcceleration.Select(t => t.GetMagnitude()).Min();
-            Vector gravity = _prevAcceleration.Find(t => t.GetMagnitude() == minAcc);
+            double minAcc = _prevAcceleration.Select(t => t.GetXYZMagnitude()).Min();
+            Vector gravity = _prevAcceleration.Find(t => t.GetXYZMagnitude() == minAcc);
             Matrix rotationMatrix = GetRotationMatrix(gravity, mag);
             Vector accMagOrientation = GetOrientation(rotationMatrix);
             
@@ -108,7 +108,7 @@ namespace Car
             Vector A = new Vector(gravity);
             Vector E = new Vector(geomanetic);
             Vector H = E % A;
-            double normH = H.NormalizeVector();
+            double normH = H.GetXYZMagnitude();
             if (normH < 0.1)
                 return null;
             H.Normalization();
@@ -121,7 +121,7 @@ namespace Car
         private static Vector GetRotationVectorFromGyro(Vector gyro, double time)
         {
             Vector tmp = new Vector(gyro);
-            double magnitude = tmp.NormalizeVector();
+            double magnitude = tmp.GetXYZMagnitude();
             if (magnitude > 0.00000001)
                 tmp.Normalization();
             double thetaOverTwo = magnitude * time;

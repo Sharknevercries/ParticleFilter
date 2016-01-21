@@ -18,6 +18,42 @@ namespace Car
 
         public double[] Value;
 
+        public double X
+        {
+            get
+            {
+                return Value[0];
+            }
+            set
+            {
+                Value[0] = value;
+            }
+        }
+
+        public double Y
+        {
+            get
+            {
+                return Value[1];
+            }
+            set
+            {
+                Value[1] = value;
+            }
+        }
+
+        public double Z
+        {
+            get
+            {
+                return Value[2];
+            }
+            set
+            {
+                Value[2] = value;
+            }
+        }
+
         public Vector(int n)
         {
             Value = new double[n];
@@ -27,9 +63,9 @@ namespace Car
 
         public Vector(double x, double y, double z) : this(3)
         {
-            Value[0] = x;
-            Value[1] = y;
-            Value[2] = z;
+            X = x;
+            Y = y;
+            Z = z;
         }
 
         public Vector(Vector v) : this(v.Length)
@@ -40,34 +76,28 @@ namespace Car
         public Vector(double[] vector) : this(vector.Length)
         {
             vector.CopyTo(Value, 0);
-        }
-
-        public double NormalizeVector()
-        {
-            double factor = 0;
-            for (int i = 0; i < 3; i++)
-            {
-                factor += Math.Pow(Value[i], 2);
-            }
-            factor = Math.Sqrt(factor);
-            return factor;
-        }
+        }        
 
         public void Normalization()
         {
-            double factor = NormalizeVector();
-            for (int i = 0; i < 3; i++)
-            {
-                Value[i] /= factor;
-            }
+            double factor = 1;
+            if(Length == 2)
+                factor = GetXYMagnitude();
+            if (Length == 3)
+                factor = GetXYZMagnitude();
+            X /= factor;
+            Y /= factor;
+            Z /= factor;
         }        
 
-        public double GetMagnitude()
+        public double GetXYZMagnitude()
         {
-            double ret = 0;
-            for (int i = 0; i < Length; i++)
-                ret += Math.Pow(Value[i], 2);
-            return Math.Sqrt(ret);
+            return Math.Sqrt(Math.Pow(X, 2) + Math.Pow(Y, 2) + Math.Pow(Z, 3));
+        }
+
+        public double GetXYMagnitude()
+        {
+            return Math.Sqrt(Math.Pow(X, 2) + Math.Pow(Y, 2));
         }
 
         /// <summary>
