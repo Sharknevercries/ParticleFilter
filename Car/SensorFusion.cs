@@ -43,11 +43,11 @@ namespace Car
             _prevAcceleration.Add(acc);
             if (_prevAcceleration.Count > shift_num)
                 _prevAcceleration.RemoveAt(0);
-            double minAcc = _prevAcceleration.Min(t => t.GetMagnitude());
+            double minAcc = _prevAcceleration.Select(t => t.GetMagnitude()).Min();
             Vector gravity = _prevAcceleration.Find(t => t.GetMagnitude() == minAcc);
             Matrix rotationMatrix = GetRotationMatrix(gravity, mag);
             Vector accMagOrientation = GetOrientation(rotationMatrix);
-
+            
             if (_initState)
             {
                 Matrix initMatrix = GetRotationMatrixFromOrientation(accMagOrientation);
@@ -98,7 +98,7 @@ namespace Car
         {
             Vector ret = new Vector(4);
             Vector tmp = _gyroMatrix % (v - gravity);
-            ret.Value.CopyTo(ret.Value, 0);
+            tmp.Value.CopyTo(ret.Value, 0);
             ret.Value[3] = _gyroOrientation.Value[0] * 180.0 / Math.PI;
             return ret;
         }
