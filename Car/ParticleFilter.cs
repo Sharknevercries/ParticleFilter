@@ -16,8 +16,9 @@ namespace Car
 
         private long _prevTimeStamp;
         private List<Particle> _particles;
+        private System.Windows.Forms.ListBox _logger;
 
-        ParticleFilter()
+        public ParticleFilter()
         {
             _particles = new List<Particle>();
             for (int i = 0; i < MAX_SIZE; i++)
@@ -25,23 +26,31 @@ namespace Car
             _prevTimeStamp = 0;
         }
 
-        public Vector Calculate(Vector accE, long curTimeStamp)
+        public Vector Calculate(Vector accE, long IMUTimeStamp, Vector gps = null, long gpsTimeStamp = 0)
         {
-            if(_prevTimeStamp == 0)
+            if (_prevTimeStamp == 0)
             {
-                _prevTimeStamp = curTimeStamp;
+                _prevTimeStamp = IMUTimeStamp;
                 return new Vector(2);
             }
 
-            foreach(var particle in _particles)
+            if(gps != null && gpsTimeStamp < IMUTimeStamp)
             {
-                particle.Acc = accE;
-                particle.Move((curTimeStamp - _prevTimeStamp) / 1000.0);
+                MoveParticles(accE, gpsTimeStamp - _prevTimeStamp);
+                TrimParticles(gps);
+                Supply(gps);
+                _prevTimeStamp = gpsTimeStamp;
             }
 
+            MoveParticles(accE, IMUTimeStamp - _prevTimeStamp);
             Resample();
-            _prevTimeStamp = curTimeStamp;
+            _prevTimeStamp = IMUTimeStamp;
 
+            return GetEstimatedPosition();
+        }      
+
+        private Vector GetEstimatedPosition()
+        {
             Vector ret = new Vector(2);
             ret[0] = _particles.Average(p => p.X);
             ret[1] = _particles.Average(p => p.Y);
@@ -49,20 +58,43 @@ namespace Car
         }
 
         /// <summary>
-        /// Use gps observation to fix particles.
+        /// Remove particles which are outside gps eps.
         /// </summary>
-        /// <param name="gps">x, y</param>
-        public void TrimParticle(Vector gps)
+        /// <param name="gps"></param>
+        private void TrimParticles(Vector gps)
         {
-
+            _particles.RemoveAll(t => Math.Pow((t.X - gps.X), 2) + Math.Pow((t.Y - gps.Y), 2) > Math.Pow(GPS_EPS, 2));
         }
+
+        /// <summary>
+        /// Supply particles up to MAX_SIZE from left particles.
+        /// </summary>
+        private void Supply(Vector gps)
+        {
+            // TODO:
+            // While there are left particles, copy particles.
+            _logger.Items.Add(_particles.Count);
+            while (_particles.Count < MAX_SIZE)
+            {
+                _particles.Add(new Particle(gps));
+            }
+        }
+        
+        private void MoveParticles(Vector accE, long timeEclipse)
+        {
+            foreach (var particle in _particles)
+            {
+                particle.Acc = accE;
+                particle.Move(timeEclipse / 1000.0);
+            }
+        }  
 
         private void Resample()
         {
             List<Particle> newParticles = new List<Particle>(MAX_SIZE);
-            double[] cdf = new double[MAX_SIZE];
+            double[] cdf = new double[MAX_SIZE + 1];
             cdf[0] = 0.0;
-            for(int i = 1;i<= MAX_SIZE; i++)
+            for (int i = 1; i <= MAX_SIZE; i++)
             {
                 cdf[i] = cdf[i - 1] + _particles[i - 1].Weight;
             }
@@ -73,9 +105,14 @@ namespace Car
                 double v = u + i * (1 / MAX_SIZE);
                 while (v > cdf[k])
                     k++;
-                newParticles.Add(_particles[k - 1]);
+                newParticles.Add(new Particle(_particles[k - 1]));
             }
             _particles = newParticles;
+        }
+
+        public void SetLogger(System.Windows.Forms.ListBox logger)
+        {
+            _logger = logger;
         }
 
     }
@@ -100,13 +137,15 @@ namespace Car
             Weight = weight;
         }
 
-        public Particle(Vector gps) : this(0, 0, 0, 0, 0)
+        public Particle(Vector gps) : this(0, 0, 0, 0, 1.0 / ParticleFilter.MAX_SIZE)
         {
             double theta = ContinuousUniform.Sample(0, 2 * Math.PI);
             double magnitude = Math.Sqrt(ContinuousUniform.Sample(0, 1)) * ParticleFilter.GPS_EPS;
             X = gps.X + magnitude * Math.Cos(theta);
             Y = gps.Y + magnitude * Math.Sin(theta);
         }
+
+        public Particle(Particle particle) : this(particle.X, particle.Y, particle.Vx, particle.Vy, particle.Weight) { }
 
         /// <summary>
         /// Move the particle.

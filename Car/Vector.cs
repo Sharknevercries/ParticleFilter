@@ -92,7 +92,7 @@ namespace Car
 
         public double GetXYZMagnitude()
         {
-            return Math.Sqrt(Math.Pow(X, 2) + Math.Pow(Y, 2) + Math.Pow(Z, 3));
+            return Math.Sqrt(Math.Pow(X, 2) + Math.Pow(Y, 2) + Math.Pow(Z, 2));
         }
 
         public double GetXYMagnitude()
@@ -111,9 +111,9 @@ namespace Car
             if (a.Length != 3 && b.Length != 3)
                 throw new NotSupportedException();
             return new Vector(
-                a[1] * b[2] - a[2] * b[1],
-                a[2] * b[0] - a[0] * b[2],
-                a[0] * b[1] - a[1] * b[0]);
+                a.Y * b.Z - a.Z * b.Y,
+                a.Z * b.X - a.X * b.Z,
+                a.X * b.Y - a.Y * b.X);
         }
 
         public static Vector operator + (Vector a, Vector b)
