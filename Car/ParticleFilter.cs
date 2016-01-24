@@ -9,7 +9,7 @@ namespace Car
 {
     class ParticleFilter
     {
-        public const int MAX_SIZE = 5000;
+        public const int MAX_SIZE = 10000;
         public const double ANG_EPS = Math.PI / 3;
         public const double V_EPS = 0.25;
         public const double ACC_EPS = 0.30;

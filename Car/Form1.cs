@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using SharpAdbClient;
 using System.IO;
 using System.Threading;
+using System.Net;
 
 namespace Car
 {
@@ -17,8 +18,11 @@ namespace Car
     {
         private readonly string SENSOR_FILE_PARTH = "/storage/sdcard0/DataCollection/01_23-13:29:17/";
         private readonly string PC_FILE_PATH = @"C:\Users\Zheng-Yuan\Documents\Visual Studio 2015\Projects\ParticleFilter\Car\";
+        private readonly string WEB_PATH = @"localhost/getcurve.php";
         private readonly string[] FILE_NAME = { "Acc.txt", "Gyr.txt", "Mag.txt", "GPS.txt" };
         private readonly int POSITION_MOVING_AVERAGE_COUNT = 9;
+        private readonly double SPEED_THRESHOLD = 15.0;
+        private readonly double CURVATURE_THRESHOLD = 0.02;
         private readonly long FUTURE_TIME = 25;
         private SensorFusion _sf;
         private ParticleFilter _pf;
@@ -58,6 +62,11 @@ namespace Car
         private List<double> _prevCurvature;
         private double _curvature;
 
+        private double _roadCurvature;
+
+        private List<double> _prevCurvatureDf;
+        private double _curvatureDf;
+
         public Form1() 
         {
             InitializeComponent();
@@ -75,6 +84,7 @@ namespace Car
             _prevTwd97 = new List<Vector>();
             _prevVelocity = new List<double>();
             _prevCurvature = new List<double>();
+            _prevCurvatureDf = new List<double>();
             _pf.SetLogger(lbInfo);
             // test use
             _accs = File.ReadAllLines("Acc.txt");
@@ -119,6 +129,7 @@ namespace Car
             if(_gpsTimeStamp == 0 || _gpsTimeStamp < _currentGPSTimeStamp)
             {
                 double[] ret = GPSConverter.GetTWD97(_gps[0], _gps[1]);
+                ReadRoadCurvature(_gps[0], _gps[1]);
                 _twd97.X = ret[0];
                 _twd97.Y = ret[1];
                 _prevTwd97.Add(new Vector(_twd97));
@@ -141,6 +152,14 @@ namespace Car
                 _gpsCounter++;
             _counter++;
             ShowResult();
+        }
+
+        private void ReadRoadCurvature(double lat, double lon)
+        {
+            WebRequest ws = WebRequest.Create(WEB_PATH + "?lat=" + lat + "&lon=" + lon);
+            Stream st = ws.GetResponse().GetResponseStream();
+            StreamReader sr = new StreamReader(st, Encoding.GetEncoding("UTF-8"));
+            _roadCurvature = double.Parse(sr.ReadLine());
         }
 
         private void CalculateEstimatedPosition(Vector predictEstimatedPosition)
@@ -240,8 +259,29 @@ namespace Car
                 lblGPSY.Text = "" + _twd97.Y;
             }
             lblCarCurvature.Text = "" + _curvature;
+            lblRoadCurvature.Text = "" + _roadCurvature;
+            lblCurvatureDf.Text = "" + _curvatureDf;
             lblV.Text = "" + _speed;
             lblEclipseTime.Text = "" + (_IMUTimeStamp - _startTimeStamp) / 1000.0;
+            if(_speed <= SPEED_THRESHOLD)
+            {
+                if (_curvatureDf >= CURVATURE_THRESHOLD)
+                {
+                    lblResult.Text = "Turn Right";
+                }
+                else if (_curvatureDf <= - CURVATURE_THRESHOLD)
+                {
+                    lblResult.Text = "Turn Left";
+                }
+                else
+                {
+                    lblResult.Text = "Straight";
+                }
+            }
+            else
+            {
+                lblResult.Text = "Straight";
+            }
         }
         
         /// <summary>
@@ -282,6 +322,11 @@ namespace Car
             double y2 = avgPredictPosition.Y - _prevAvgEstimatedPosition[count].Y;
             if (x1 * y2 - x2 * y1 > 0)
                 _curvature *= -1;
+
+            if (_prevCurvatureDf.Count >= POSITION_MOVING_AVERAGE_COUNT)
+                _prevCurvatureDf.RemoveAt(0);
+            _prevCurvatureDf.Add(_curvature - _roadCurvature);
+            _curvatureDf = _prevCurvatureDf.Average();
         }
 
     }
