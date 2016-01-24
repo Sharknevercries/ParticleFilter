@@ -159,7 +159,8 @@ namespace Car
             WebRequest ws = WebRequest.Create(WEB_PATH + "?lat=" + lat + "&lon=" + lon);
             Stream st = ws.GetResponse().GetResponseStream();
             StreamReader sr = new StreamReader(st, Encoding.GetEncoding("UTF-8"));
-            _roadCurvature = double.Parse(sr.ReadLine());
+            string s = sr.ReadLine().TrimEnd("</br>".ToCharArray());
+            _roadCurvature = double.Parse(s);
         }
 
         private void CalculateEstimatedPosition(Vector predictEstimatedPosition)
