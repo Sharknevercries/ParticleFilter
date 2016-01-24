@@ -31,6 +31,10 @@
             this.components = new System.ComponentModel.Container();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.groupBox5 = new System.Windows.Forms.GroupBox();
+            this.label29 = new System.Windows.Forms.Label();
+            this.label26 = new System.Windows.Forms.Label();
+            this.lblGPSY = new System.Windows.Forms.Label();
+            this.lblGPSX = new System.Windows.Forms.Label();
             this.lblV = new System.Windows.Forms.Label();
             this.label10 = new System.Windows.Forms.Label();
             this.lblLatitude = new System.Windows.Forms.Label();
@@ -60,17 +64,17 @@
             this.label1 = new System.Windows.Forms.Label();
             this.groupBox6 = new System.Windows.Forms.GroupBox();
             this.groupBox10 = new System.Windows.Forms.GroupBox();
-            this.label20 = new System.Windows.Forms.Label();
+            this.lblResult = new System.Windows.Forms.Label();
             this.groupBox9 = new System.Windows.Forms.GroupBox();
             this.lblEstimatedY = new System.Windows.Forms.Label();
             this.lblEstimatedX = new System.Windows.Forms.Label();
             this.label27 = new System.Windows.Forms.Label();
             this.label28 = new System.Windows.Forms.Label();
             this.groupBox8 = new System.Windows.Forms.GroupBox();
-            this.label13 = new System.Windows.Forms.Label();
+            this.lblCurvatureDf = new System.Windows.Forms.Label();
             this.label22 = new System.Windows.Forms.Label();
-            this.label14 = new System.Windows.Forms.Label();
-            this.label19 = new System.Windows.Forms.Label();
+            this.lblCarCurvature = new System.Windows.Forms.Label();
+            this.lblRoadCurvature = new System.Windows.Forms.Label();
             this.label23 = new System.Windows.Forms.Label();
             this.label24 = new System.Windows.Forms.Label();
             this.groupBox7 = new System.Windows.Forms.GroupBox();
@@ -86,10 +90,6 @@
             this.btnStart = new System.Windows.Forms.Button();
             this.btnStop = new System.Windows.Forms.Button();
             this.timer1 = new System.Windows.Forms.Timer(this.components);
-            this.lblGPSX = new System.Windows.Forms.Label();
-            this.lblGPSY = new System.Windows.Forms.Label();
-            this.label26 = new System.Windows.Forms.Label();
-            this.label29 = new System.Windows.Forms.Label();
             this.label21 = new System.Windows.Forms.Label();
             this.lblEclipseTime = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
@@ -136,6 +136,42 @@
             this.groupBox5.TabIndex = 3;
             this.groupBox5.TabStop = false;
             this.groupBox5.Text = "GPS";
+            // 
+            // label29
+            // 
+            this.label29.AutoSize = true;
+            this.label29.Location = new System.Drawing.Point(6, 123);
+            this.label29.Name = "label29";
+            this.label29.Size = new System.Drawing.Size(19, 16);
+            this.label29.TabIndex = 20;
+            this.label29.Text = "Y";
+            // 
+            // label26
+            // 
+            this.label26.AutoSize = true;
+            this.label26.Location = new System.Drawing.Point(6, 98);
+            this.label26.Name = "label26";
+            this.label26.Size = new System.Drawing.Size(19, 16);
+            this.label26.TabIndex = 19;
+            this.label26.Text = "X";
+            // 
+            // lblGPSY
+            // 
+            this.lblGPSY.AutoSize = true;
+            this.lblGPSY.Location = new System.Drawing.Point(79, 123);
+            this.lblGPSY.Name = "lblGPSY";
+            this.lblGPSY.Size = new System.Drawing.Size(16, 16);
+            this.lblGPSY.TabIndex = 18;
+            this.lblGPSY.Text = "0";
+            // 
+            // lblGPSX
+            // 
+            this.lblGPSX.AutoSize = true;
+            this.lblGPSX.Location = new System.Drawing.Point(79, 98);
+            this.lblGPSX.Name = "lblGPSX";
+            this.lblGPSX.Size = new System.Drawing.Size(16, 16);
+            this.lblGPSX.TabIndex = 17;
+            this.lblGPSX.Text = "0";
             // 
             // lblV
             // 
@@ -414,23 +450,23 @@
             // 
             // groupBox10
             // 
-            this.groupBox10.Controls.Add(this.label20);
-            this.groupBox10.Location = new System.Drawing.Point(8, 367);
+            this.groupBox10.Controls.Add(this.lblResult);
+            this.groupBox10.Location = new System.Drawing.Point(8, 392);
             this.groupBox10.Name = "groupBox10";
             this.groupBox10.Size = new System.Drawing.Size(234, 77);
             this.groupBox10.TabIndex = 9;
             this.groupBox10.TabStop = false;
             this.groupBox10.Text = "預測轉彎結果";
             // 
-            // label20
+            // lblResult
             // 
-            this.label20.AutoSize = true;
-            this.label20.Font = new System.Drawing.Font("新細明體", 30F);
-            this.label20.Location = new System.Drawing.Point(66, 26);
-            this.label20.Name = "label20";
-            this.label20.Size = new System.Drawing.Size(128, 40);
-            this.label20.TabIndex = 8;
-            this.label20.Text = "label20";
+            this.lblResult.AutoSize = true;
+            this.lblResult.Font = new System.Drawing.Font("新細明體", 30F);
+            this.lblResult.Location = new System.Drawing.Point(66, 26);
+            this.lblResult.Name = "lblResult";
+            this.lblResult.Size = new System.Drawing.Size(128, 40);
+            this.lblResult.TabIndex = 8;
+            this.lblResult.Text = "label20";
             // 
             // groupBox9
             // 
@@ -483,59 +519,59 @@
             // 
             // groupBox8
             // 
-            this.groupBox8.Controls.Add(this.label13);
+            this.groupBox8.Controls.Add(this.lblCurvatureDf);
             this.groupBox8.Controls.Add(this.label22);
-            this.groupBox8.Controls.Add(this.label14);
-            this.groupBox8.Controls.Add(this.label19);
+            this.groupBox8.Controls.Add(this.lblCarCurvature);
+            this.groupBox8.Controls.Add(this.lblRoadCurvature);
             this.groupBox8.Controls.Add(this.label23);
             this.groupBox8.Controls.Add(this.label24);
             this.groupBox8.Location = new System.Drawing.Point(8, 261);
             this.groupBox8.Name = "groupBox8";
-            this.groupBox8.Size = new System.Drawing.Size(234, 100);
+            this.groupBox8.Size = new System.Drawing.Size(234, 122);
             this.groupBox8.TabIndex = 7;
             this.groupBox8.TabStop = false;
             this.groupBox8.Text = "曲率";
             // 
-            // label13
+            // lblCurvatureDf
             // 
-            this.label13.AutoSize = true;
-            this.label13.Location = new System.Drawing.Point(178, 61);
-            this.label13.Name = "label13";
-            this.label13.Size = new System.Drawing.Size(16, 16);
-            this.label13.TabIndex = 8;
-            this.label13.Text = "0";
+            this.lblCurvatureDf.AutoSize = true;
+            this.lblCurvatureDf.Location = new System.Drawing.Point(68, 83);
+            this.lblCurvatureDf.Name = "lblCurvatureDf";
+            this.lblCurvatureDf.Size = new System.Drawing.Size(16, 16);
+            this.lblCurvatureDf.TabIndex = 8;
+            this.lblCurvatureDf.Text = "0";
             // 
             // label22
             // 
             this.label22.AutoSize = true;
-            this.label22.Location = new System.Drawing.Point(172, 23);
+            this.label22.Location = new System.Drawing.Point(6, 83);
             this.label22.Name = "label22";
             this.label22.Size = new System.Drawing.Size(56, 16);
             this.label22.TabIndex = 2;
             this.label22.Text = "曲率差";
             // 
-            // label14
+            // lblCarCurvature
             // 
-            this.label14.AutoSize = true;
-            this.label14.Location = new System.Drawing.Point(92, 61);
-            this.label14.Name = "label14";
-            this.label14.Size = new System.Drawing.Size(16, 16);
-            this.label14.TabIndex = 7;
-            this.label14.Text = "0";
+            this.lblCarCurvature.AutoSize = true;
+            this.lblCarCurvature.Location = new System.Drawing.Point(52, 50);
+            this.lblCarCurvature.Name = "lblCarCurvature";
+            this.lblCarCurvature.Size = new System.Drawing.Size(16, 16);
+            this.lblCarCurvature.TabIndex = 7;
+            this.lblCarCurvature.Text = "0";
             // 
-            // label19
+            // lblRoadCurvature
             // 
-            this.label19.AutoSize = true;
-            this.label19.Location = new System.Drawing.Point(6, 61);
-            this.label19.Name = "label19";
-            this.label19.Size = new System.Drawing.Size(16, 16);
-            this.label19.TabIndex = 6;
-            this.label19.Text = "0";
+            this.lblRoadCurvature.AutoSize = true;
+            this.lblRoadCurvature.Location = new System.Drawing.Point(52, 25);
+            this.lblRoadCurvature.Name = "lblRoadCurvature";
+            this.lblRoadCurvature.Size = new System.Drawing.Size(16, 16);
+            this.lblRoadCurvature.TabIndex = 6;
+            this.lblRoadCurvature.Text = "0";
             // 
             // label23
             // 
             this.label23.AutoSize = true;
-            this.label23.Location = new System.Drawing.Point(92, 23);
+            this.label23.Location = new System.Drawing.Point(6, 50);
             this.label23.Name = "label23";
             this.label23.Size = new System.Drawing.Size(40, 16);
             this.label23.TabIndex = 1;
@@ -676,42 +712,6 @@
             this.timer1.Interval = 17;
             this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
             // 
-            // lblGPSX
-            // 
-            this.lblGPSX.AutoSize = true;
-            this.lblGPSX.Location = new System.Drawing.Point(79, 98);
-            this.lblGPSX.Name = "lblGPSX";
-            this.lblGPSX.Size = new System.Drawing.Size(16, 16);
-            this.lblGPSX.TabIndex = 17;
-            this.lblGPSX.Text = "0";
-            // 
-            // lblGPSY
-            // 
-            this.lblGPSY.AutoSize = true;
-            this.lblGPSY.Location = new System.Drawing.Point(79, 123);
-            this.lblGPSY.Name = "lblGPSY";
-            this.lblGPSY.Size = new System.Drawing.Size(16, 16);
-            this.lblGPSY.TabIndex = 18;
-            this.lblGPSY.Text = "0";
-            // 
-            // label26
-            // 
-            this.label26.AutoSize = true;
-            this.label26.Location = new System.Drawing.Point(6, 98);
-            this.label26.Name = "label26";
-            this.label26.Size = new System.Drawing.Size(19, 16);
-            this.label26.TabIndex = 19;
-            this.label26.Text = "X";
-            // 
-            // label29
-            // 
-            this.label29.AutoSize = true;
-            this.label29.Location = new System.Drawing.Point(6, 123);
-            this.label29.Name = "label29";
-            this.label29.Size = new System.Drawing.Size(19, 16);
-            this.label29.TabIndex = 20;
-            this.label29.Text = "Y";
-            // 
             // label21
             // 
             this.label21.AutoSize = true;
@@ -816,15 +816,15 @@
         private System.Windows.Forms.Label label17;
         private System.Windows.Forms.Label label18;
         private System.Windows.Forms.GroupBox groupBox10;
-        private System.Windows.Forms.Label label20;
+        private System.Windows.Forms.Label lblResult;
         private System.Windows.Forms.GroupBox groupBox9;
         private System.Windows.Forms.Label lblEstimatedY;
         private System.Windows.Forms.Label lblEstimatedX;
         private System.Windows.Forms.Label label27;
         private System.Windows.Forms.Label label28;
-        private System.Windows.Forms.Label label13;
-        private System.Windows.Forms.Label label14;
-        private System.Windows.Forms.Label label19;
+        private System.Windows.Forms.Label lblCurvatureDf;
+        private System.Windows.Forms.Label lblCarCurvature;
+        private System.Windows.Forms.Label lblRoadCurvature;
         private System.Windows.Forms.Label label23;
         private System.Windows.Forms.Label lblAzimuth;
         private System.Windows.Forms.Label label15;

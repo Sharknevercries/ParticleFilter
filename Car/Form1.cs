@@ -18,7 +18,8 @@ namespace Car
         private readonly string SENSOR_FILE_PARTH = "/storage/sdcard0/DataCollection/01_23-13:29:17/";
         private readonly string PC_FILE_PATH = @"C:\Users\Zheng-Yuan\Documents\Visual Studio 2015\Projects\ParticleFilter\Car\";
         private readonly string[] FILE_NAME = { "Acc.txt", "Gyr.txt", "Mag.txt", "GPS.txt" };
-        private readonly int MOVING_AVERAGE_COUNT = 3;
+        private readonly int POSITION_MOVING_AVERAGE_COUNT = 9;
+        private readonly long FUTURE_TIME = 25;
         private SensorFusion _sf;
         private ParticleFilter _pf;
 
@@ -31,6 +32,8 @@ namespace Car
         //private string _gyrs;
         //private string _gpss;
         private long _startTimeStamp;
+        private long _currentIMUTimeStamp;
+        private long _currentGPSTimeStamp;
         private long _IMUTimeStamp;
         private Vector _acc;
         private Vector _mag;
@@ -38,18 +41,24 @@ namespace Car
         private long _gpsTimeStamp;
         private Vector _gps;
         private Vector _twd97;
-        private double _speed;
 
         private int _counter = 0;
         private int _gpsCounter = 0;
 
         private Vector _accE;
-        private Vector _estimatedPosition;
-        private Vector _roadCurvature;
 
         private List<Vector> _prevEstimatedPosition;
-        
-        public Form1()
+        private List<Vector> _prevAvgEstimatedPosition;
+        private Vector _predictPosition;
+
+        private List<Vector> _prevTwd97;
+        private List<double> _prevVelocity;
+        private double _speed;
+
+        private List<double> _prevCurvature;
+        private double _curvature;
+
+        public Form1() 
         {
             InitializeComponent();
             _acc = new Vector(3);
@@ -59,10 +68,13 @@ namespace Car
             _twd97 = new Vector(2);
             _IMUTimeStamp = 0;
             _gpsTimeStamp = 0;
-            _speed = 0;
             _sf = new SensorFusion();
             _pf = new ParticleFilter();
             _prevEstimatedPosition = new List<Vector>();
+            _prevAvgEstimatedPosition = new List<Vector>();
+            _prevTwd97 = new List<Vector>();
+            _prevVelocity = new List<double>();
+            _prevCurvature = new List<double>();
             _pf.SetLogger(lbInfo);
             // test use
             _accs = File.ReadAllLines("Acc.txt");
@@ -102,30 +114,28 @@ namespace Car
             _gps[0] = double.Parse(gps[1]);
             _gps[1] = double.Parse(gps[2]);
             _gps[2] = double.Parse(gps[4]);
-            long currentIMUTimeStamp = long.Parse(acc[0]);
-            long currentGPSTimeStamp = long.Parse(gps[0]);
-            if(_gpsTimeStamp == 0 || _gpsTimeStamp < currentGPSTimeStamp)
+            _currentIMUTimeStamp = long.Parse(acc[0]);
+            _currentGPSTimeStamp = long.Parse(gps[0]);
+            if(_gpsTimeStamp == 0 || _gpsTimeStamp < _currentGPSTimeStamp)
             {
                 double[] ret = GPSConverter.GetTWD97(_gps[0], _gps[1]);
                 _twd97.X = ret[0];
                 _twd97.Y = ret[1];
-                _gpsTimeStamp = currentGPSTimeStamp;
+                _prevTwd97.Add(new Vector(_twd97));
+                if(_prevTwd97.Count >= 3)
+                    CalculateVelocity();
+                _gpsTimeStamp = _currentGPSTimeStamp;
             }
             if (_startTimeStamp == 0)
                 _startTimeStamp = _IMUTimeStamp;
-            if(_IMUTimeStamp == 0 || _IMUTimeStamp < currentIMUTimeStamp)
+            if(_IMUTimeStamp == 0 || _IMUTimeStamp < _currentIMUTimeStamp)
             {                
-                _accE = _sf.Calculate(new Vector(_acc), new Vector(_gyr), new Vector(_mag), currentIMUTimeStamp);
-                Vector nextEstimatedPosition = _pf.Calculate(_accE, currentIMUTimeStamp, _twd97, _gpsTimeStamp);
-                if (_prevEstimatedPosition.Count >= MOVING_AVERAGE_COUNT)
-                    _prevEstimatedPosition.RemoveAt(0);
-                _prevEstimatedPosition.Add(nextEstimatedPosition);
-                if(_estimatedPosition != null)
-                {
-                    _speed = (Math.Sqrt(Math.Pow(nextEstimatedPosition.X - _estimatedPosition.X, 2) + Math.Pow(nextEstimatedPosition.Y - _estimatedPosition.Y, 2)) / ((currentIMUTimeStamp - _IMUTimeStamp) / 1000.0)) * 3600.0 / 1000.0;
-                }
-                _estimatedPosition = nextEstimatedPosition;
-                _IMUTimeStamp = currentIMUTimeStamp;
+                _accE = _sf.Calculate(new Vector(_acc), new Vector(_gyr), new Vector(_mag), _currentIMUTimeStamp);
+                _pf.Update(_accE, _currentIMUTimeStamp, _twd97, _gpsTimeStamp);
+                CalculateEstimatedPosition(_pf.GetCurrentPosition());
+                _predictPosition = _pf.GetEstimatedPosition(FUTURE_TIME);
+                CalculateCurvature();
+                _IMUTimeStamp = _currentIMUTimeStamp;
             }
             if (_IMUTimeStamp > _gpsTimeStamp)
                 _gpsCounter++;
@@ -133,9 +143,33 @@ namespace Car
             ShowResult();
         }
 
-        private void SetGPSData()
+        private void CalculateEstimatedPosition(Vector predictEstimatedPosition)
         {
+            Vector nextAvgEstimatedPosition = new Vector(2);
+            if (_prevEstimatedPosition.Count >= POSITION_MOVING_AVERAGE_COUNT)
+                _prevEstimatedPosition.RemoveAt(0);
+            _prevEstimatedPosition.Add(predictEstimatedPosition);
+            nextAvgEstimatedPosition.X = _prevEstimatedPosition.Average(p => p.X);
+            nextAvgEstimatedPosition.Y = _prevEstimatedPosition.Average(p => p.Y);
+            if (_prevAvgEstimatedPosition.Count >= POSITION_MOVING_AVERAGE_COUNT)
+                _prevAvgEstimatedPosition.RemoveAt(0);
+            _prevAvgEstimatedPosition.Add(nextAvgEstimatedPosition);
+        }
 
+        /// <summary>
+        /// 取GPS第一和第三新的座標位置去計算速率，當前速率取前三筆速率的平均值
+        /// </summary>
+        private void CalculateVelocity()
+        {
+            if (_prevTwd97.Count >= 4)
+                _prevTwd97.RemoveAt(0);
+            double dx = _prevTwd97[2].X - _prevTwd97[0].X;
+            double dy = _prevTwd97[2].Y - _prevTwd97[0].Y;
+            double speed = Math.Sqrt(Math.Pow(dx, 2) + Math.Pow(dy, 2)) / 2.0 * 3600 / 1000.0;
+            _prevVelocity.Add(speed);
+            if (_prevVelocity.Count >= 4)
+                _prevVelocity.RemoveAt(0);
+            _speed = _prevVelocity.Average();
         }
 
         private void DownloadData()
@@ -195,26 +229,60 @@ namespace Car
                 lblEarthAccelerationZ.Text = "" + _accE[2];
                 lblAzimuth.Text = "" + _accE[3];
             }
-            if(_estimatedPosition!= null)
+            if (_predictPosition != null)
             {
-                lblEstimatedX.Text = "" + _estimatedPosition.X;
-                lblEstimatedY.Text = "" + _estimatedPosition.Y;
+                lblEstimatedX.Text = "" + _predictPosition.X;
+                lblEstimatedY.Text = "" + _predictPosition.Y;
             }
             if(_twd97 != null)
             {
                 lblGPSX.Text = "" + _twd97.X;
                 lblGPSY.Text = "" + _twd97.Y;
             }
+            lblCarCurvature.Text = "" + _curvature;
             lblV.Text = "" + _speed;
             lblEclipseTime.Text = "" + (_IMUTimeStamp - _startTimeStamp) / 1000.0;
-          
         }
-
-        public void Logger(string s)
+        
+        /// <summary>
+        /// 以位置去計算當前曲率，算完後再與之前數筆曲率做一次平均
+        /// </summary>
+        /// <returns></returns>
+        private void CalculateCurvature()
         {
-            lbInfo.Items.Add(s);
-        }
+            Vector avgPredictPosition = new Vector(2);
+            int count = _prevAvgEstimatedPosition.Count;
+            if (count < 2)
+            {
+                return ;
+            }
+            avgPredictPosition.X = _prevAvgEstimatedPosition.Last().X * count;
+            avgPredictPosition.Y = _prevAvgEstimatedPosition.Last().Y * count;
+            if(count >= POSITION_MOVING_AVERAGE_COUNT)
+            {
+                avgPredictPosition.X -= _prevAvgEstimatedPosition[0].X;
+                avgPredictPosition.Y -= _prevAvgEstimatedPosition[0].Y;
+                count--;
+            }
+            avgPredictPosition.X += _predictPosition.X;
+            avgPredictPosition.Y += _predictPosition.Y;
+            count++;
+            avgPredictPosition.X /= count;
+            avgPredictPosition.Y /= count;
 
+            count = _prevAvgEstimatedPosition.Count - 1;
+            double a = Math.Sqrt(Math.Pow(_prevAvgEstimatedPosition[count - 1].X - _prevAvgEstimatedPosition[count].X, 2) + Math.Pow(_prevAvgEstimatedPosition[count - 1].Y - _prevAvgEstimatedPosition[count].Y, 2));
+            double b = Math.Sqrt(Math.Pow(_prevAvgEstimatedPosition[count].X - avgPredictPosition.X, 2) + Math.Pow(_prevAvgEstimatedPosition[count].Y - avgPredictPosition.Y, 2));
+            double c = Math.Sqrt(Math.Pow(_prevAvgEstimatedPosition[count - 1].X - avgPredictPosition.X, 2) + Math.Pow(_prevAvgEstimatedPosition[count - 1].Y - avgPredictPosition.Y, 2));
+            double theta = (a * a + b * b - c * c) / (2 * a * b);
+            _curvature = 1.0 / (c / (2 * Math.Sqrt((1 - theta * theta))));
+            double x1 = _prevAvgEstimatedPosition[count].X - _prevAvgEstimatedPosition[count - 1].X;
+            double x2 = avgPredictPosition.X - _prevAvgEstimatedPosition[count].X;
+            double y1 = _prevAvgEstimatedPosition[count].Y - _prevAvgEstimatedPosition[count - 1].Y;
+            double y2 = avgPredictPosition.Y - _prevAvgEstimatedPosition[count].Y;
+            if (x1 * y2 - x2 * y1 > 0)
+                _curvature *= -1;
+        }
 
     }
 }

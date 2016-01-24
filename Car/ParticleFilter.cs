@@ -9,14 +9,17 @@ namespace Car
 {
     class ParticleFilter
     {
-        public const int MAX_SIZE = 3000;
+        public const int MAX_SIZE = 5000;
         public const double ANG_EPS = Math.PI / 3;
+        public const double V_EPS = 0.25;
         public const double ACC_EPS = 0.30;
-        public const double GPS_EPS = 5;
+        public const double GPS_EPS = 15;
+        public const double ATTENUATION = 0.15;
 
         private long _prevTimeStamp;
         private List<Particle> _particles;
         private System.Windows.Forms.ListBox _logger;
+        private Vector _prevAccE;
 
         public ParticleFilter()
         {
@@ -26,57 +29,74 @@ namespace Car
             _prevTimeStamp = 0;
         }
 
-        public Vector Calculate(Vector accE, long IMUTimeStamp, Vector gps = null, long gpsTimeStamp = 0)
+        public void Update(Vector accE, long IMUTimeStamp, Vector gps = null, long gpsTimeStamp = 0)
         {
             if (_prevTimeStamp == 0)
             {
                 _prevTimeStamp = IMUTimeStamp;
-                return new Vector(2);
+                return;
             }
 
             if(gps != null && gpsTimeStamp < IMUTimeStamp)
             {
                 MoveParticles(accE, gpsTimeStamp - _prevTimeStamp);
                 TrimParticles(gps);
-                Supply(gps);
                 _prevTimeStamp = gpsTimeStamp;
             }
 
             MoveParticles(accE, IMUTimeStamp - _prevTimeStamp);
             Resample();
             _prevTimeStamp = IMUTimeStamp;
-
-            return GetEstimatedPosition();
+            _prevAccE = new Vector(accE);
         }      
 
-        private Vector GetEstimatedPosition()
+        public Vector GetCurrentPosition()
         {
             Vector ret = new Vector(2);
-            ret[0] = _particles.Average(p => p.X);
-            ret[1] = _particles.Average(p => p.Y);
+            ret.X = _particles.Average(p => p.X);
+            ret.Y = _particles.Average(p => p.Y);
+            return ret;
+        }
+
+        public Vector GetEstimatedPosition(long timeEclipse)
+        {
+            Vector ret = new Vector(2);
+            if (_prevAccE == null)
+            {
+                return ret;
+            }
+            List<Particle> futureParticles = new List<Particle>();
+            foreach(var p in _particles)
+            {
+                futureParticles.Add(new Particle(p));
+            }
+            foreach(var p in futureParticles)
+            {
+                p.Move(_prevAccE, timeEclipse);
+            }
+            ret.X = futureParticles.Average(p => p.X);
+            ret.Y = futureParticles.Average(p => p.Y);
             return ret;
         }
 
         /// <summary>
-        /// Remove particles which are outside gps eps.
+        /// Remove particles which are outside gps eps and supply up to MAX_SIZE.
         /// </summary>
         /// <param name="gps"></param>
         private void TrimParticles(Vector gps)
         {
+            double avgx = _particles.Average(p => p.Vx);
+            double avgy = _particles.Average(p => p.Vy);
             _particles.RemoveAll(t => Math.Pow((t.X - gps.X), 2) + Math.Pow((t.Y - gps.Y), 2) > Math.Pow(GPS_EPS, 2));
-        }
-
-        /// <summary>
-        /// Supply particles up to MAX_SIZE from left particles.
-        /// </summary>
-        private void Supply(Vector gps)
-        {
-            // TODO:
-            // While there are left particles, copy particles.
             _logger.Items.Add(_particles.Count);
+            _logger.Items.Add(avgx);
+            _logger.Items.Add(avgy);
             while (_particles.Count < MAX_SIZE)
             {
-                _particles.Add(new Particle(gps));
+                Particle p = new Particle(gps);
+                p.Vx = (avgx + avgx * ContinuousUniform.Sample(-V_EPS, V_EPS)) * ATTENUATION;
+                p.Vy = (avgy + avgy * ContinuousUniform.Sample(-V_EPS, V_EPS)) * ATTENUATION;
+                _particles.Add(p);
             }
         }
         
@@ -84,8 +104,7 @@ namespace Car
         {
             foreach (var particle in _particles)
             {
-                particle.Acc = accE;
-                particle.Move(timeEclipse / 1000.0);
+                particle.Move(accE, timeEclipse / 1000.0);
             }
         }  
 
@@ -124,7 +143,6 @@ namespace Car
         public double Vx;
         public double Vy;
         public double Weight;
-        public Vector Acc;
 
         public Particle() : this(0, 0, 0, 0, 1.0 / ParticleFilter.MAX_SIZE) { }
 
@@ -145,19 +163,23 @@ namespace Car
             Y = gps.Y + magnitude * Math.Sin(theta);
         }
 
-        public Particle(Particle particle) : this(particle.X, particle.Y, particle.Vx, particle.Vy, particle.Weight) { }
+        public Particle(Particle particle) : this(particle.X, particle.Y, particle.Vx, particle.Vy, particle.Weight)
+        {
+        }
 
         /// <summary>
         /// Move the particle.
         /// </summary>
         /// <param name="timeEclipse">ms</param>
-        public void Move(double timeEclipse)
+        public void Move(Vector acc, double timeEclipse)
         {
-            double magnitude = Acc.GetXYMagnitude();
-            double theta = ParseAzimuth(Acc[3]) / 180.0 * Math.PI + ContinuousUniform.Sample(-ParticleFilter.ANG_EPS, ParticleFilter.ANG_EPS);
+            double magnitude = acc.GetXYMagnitude();
+            double theta = ParseAzimuth(acc[3]) / 180.0 * Math.PI + ContinuousUniform.Sample(-ParticleFilter.ANG_EPS, ParticleFilter.ANG_EPS);
             double rand_magitude = magnitude + magnitude * ContinuousUniform.Sample(-ParticleFilter.ACC_EPS, ParticleFilter.ACC_EPS);
             double ax = Math.Cos(theta) * rand_magitude;
             double ay = Math.Sin(theta) * rand_magitude;
+            //double ax = acc.X;
+            //double ay = acc.Y;
             X += (2 * Vx + ax) * timeEclipse / 2.0;
             Y += (2 * Vy + ay) * timeEclipse / 2.0;
             Vx += ax * timeEclipse;

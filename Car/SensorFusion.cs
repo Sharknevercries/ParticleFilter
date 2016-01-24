@@ -14,6 +14,8 @@ namespace Car
         private Matrix _gyroMatrix;
         private Vector _gyroOrientation;
         private List<Vector> _prevAcceleration;
+
+        private System.Windows.Forms.ListBox _logger;
         
         public SensorFusion()
         {
@@ -195,6 +197,11 @@ namespace Car
             ret.Value[1] = Math.Asin(-r.Value[2, 1]);
             ret.Value[2] = Math.Atan2(-r.Value[2, 0], r.Value[2, 2]);
             return ret;
+        }
+
+        public void SetLogger(System.Windows.Forms.ListBox logger)
+        {
+            _logger = logger;
         }
     }
 }
