@@ -9,11 +9,11 @@ namespace Car
 {
     class ParticleFilter
     {
-        public const int MAX_SIZE = 10000;
+        public const int MAX_SIZE = 5000;
         public const double ANG_EPS = Math.PI / 3;
-        public const double V_EPS = 0.25;
-        public const double ACC_EPS = 0.30;
-        public const double GPS_EPS = 15;
+        public const double V_EPS = 0.15;
+        public const double ACC_EPS = 0.15;
+        public const double GPS_EPS = 10;
         public const double ATTENUATION = 0.15;
 
         private long _prevTimeStamp;
@@ -89,8 +89,8 @@ namespace Car
             double avgy = _particles.Average(p => p.Vy);
             _particles.RemoveAll(t => Math.Pow((t.X - gps.X), 2) + Math.Pow((t.Y - gps.Y), 2) > Math.Pow(GPS_EPS, 2));
             _logger.Items.Add(_particles.Count);
-            _logger.Items.Add(avgx);
-            _logger.Items.Add(avgy);
+            //_logger.Items.Add(avgx);
+            //_logger.Items.Add(avgy);
             while (_particles.Count < MAX_SIZE)
             {
                 Particle p = new Particle(gps);
