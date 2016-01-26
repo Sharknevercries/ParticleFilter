@@ -81,13 +81,19 @@ namespace Car
         public void Normalization()
         {
             double factor = 1;
-            if(Length == 2)
+            if (Length == 2)
+            {
                 factor = GetXYMagnitude();
+                X /= factor;
+                Y /= factor;
+            }
             if (Length == 3)
+            {
                 factor = GetXYZMagnitude();
-            X /= factor;
-            Y /= factor;
-            Z /= factor;
+                X /= factor;
+                Y /= factor;
+                Z /= factor;
+            }
         }        
 
         public double GetXYZMagnitude()
@@ -109,7 +115,7 @@ namespace Car
         public static Vector operator % (Vector a, Vector b)
         {
             if (a.Length != 3 && b.Length != 3)
-                throw new NotSupportedException();
+                throw new InvalidOperationException();
             return new Vector(
                 a.Y * b.Z - a.Z * b.Y,
                 a.Z * b.X - a.X * b.Z,

@@ -45,7 +45,7 @@ namespace Car
             _prevAcceleration.Add(acc);
             if (_prevAcceleration.Count > shift_num)
                 _prevAcceleration.RemoveAt(0);
-            double minAcc = _prevAcceleration.Select(t => t.GetXYZMagnitude()).Min();
+            double minAcc = _prevAcceleration.Min(t => t.GetXYZMagnitude());
             Vector gravity = _prevAcceleration.Find(t => t.GetXYZMagnitude() == minAcc);
             Matrix rotationMatrix = GetRotationMatrix(gravity, mag);
             Vector accMagOrientation = GetOrientation(rotationMatrix);
@@ -62,7 +62,7 @@ namespace Car
             Vector deltaVector = new Vector(4);
             if (_prevTimeStamp != 0)
             {
-                double dt = (curTimeStamp - _prevTimeStamp) / 1000000000.0;
+                double dt = (curTimeStamp - _prevTimeStamp) / 1000.0;
                 deltaVector = GetRotationVectorFromGyro(gyr, dt / 2.0);
             }
             Matrix deltaMatrix = GetRotationMatrixFromVector(deltaVector);
