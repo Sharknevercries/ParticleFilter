@@ -23,7 +23,7 @@ namespace Car
         private readonly int POSITION_MOVING_AVERAGE_COUNT = 5;
         private readonly double SPEED_THRESHOLD = 14.0;
         private readonly double CURVATURE_THRESHOLD = 0.02;
-        private readonly long FUTURE_TIME = 150;
+        private readonly long FUTURE_TIME = 200;
         private SensorFusion _sf;
         private ParticleFilter _pf;
 
@@ -140,9 +140,9 @@ namespace Car
                 _startTimeStamp = _IMUTimeStamp;
             if(_IMUTimeStamp == 0 || _IMUTimeStamp < _currentIMUTimeStamp)
             {                
-                _accE = _sf.Calculate(new Vector(_acc), new Vector(_gyr), new Vector(_mag), _currentIMUTimeStamp);
-                _pf.Update(_accE, _currentIMUTimeStamp, _twd97, _gpsTimeStamp);
-                _predictPosition = _pf.GetCurrentPosition();
+                //_accE = _sf.Calculate(new Vector(_acc), new Vector(_gyr), new Vector(_mag), _currentIMUTimeStamp);
+                //_pf.Update(_accE, _currentIMUTimeStamp, _twd97, _gpsTimeStamp);
+                //_predictPosition = _pf.GetCurrentPosition();
                 CalculateEstimatedCurvature();
                 _IMUTimeStamp = _currentIMUTimeStamp;
             }
@@ -272,20 +272,20 @@ namespace Car
             {
                 if (_curvatureDf >= CURVATURE_THRESHOLD)
                 {
-                    lblResult.Text = "Turn Left";
+                    lblResult.Text = "Right Turn";
                 }
                 else if (_curvatureDf <= - CURVATURE_THRESHOLD)
                 {
-                    lblResult.Text = "Turn Right";
+                    lblResult.Text = "Left Turn";
                 }
                 else
                 {
-                    lblResult.Text = "Straight";
+                    lblResult.Text = "Go Straight";
                 }
             }
             else
             {
-                lblResult.Text = "Straight";
+                lblResult.Text = "Go Straight";
             }
         }
 
@@ -315,19 +315,21 @@ namespace Car
 
         private void CalculateEstimatedCurvature()
         {
-            if (_prevAvgTwd97.Count < 2)
+            if (_prevAvgTwd97.Count < 3)
                 return ;
 
             List<Vector> futureTwd97 = new List<Vector>(_prevTwd97);
             int lastIndex = _prevAvgTwd97.Count - 1;
-            Vector prev = _prevAvgTwd97[lastIndex - 1];
-            Vector cur = _prevAvgTwd97[lastIndex];
-            Vector future = new Vector(2);
+            Vector prev = _prevAvgTwd97[lastIndex - 2];
+            Vector cur = _prevAvgTwd97[lastIndex - 1];
+            Vector future = _prevAvgTwd97[lastIndex];
+            /*
             if (futureTwd97.Count >= POSITION_MOVING_AVERAGE_COUNT)
                 futureTwd97.RemoveAt(0);
             futureTwd97.Add(_predictPosition);
             future.X = futureTwd97.Average(twd => twd.X);
             future.Y = futureTwd97.Average(twd => twd.Y);
+            */
             _curvature = CalculateCurvature(prev, cur, future);
             AddCurvatureDf(_curvature - _roadCurvature);
         }
