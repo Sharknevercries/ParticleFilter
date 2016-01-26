@@ -16,6 +16,7 @@ namespace Car
 {
     public partial class Form1 : Form
     {
+        private readonly string ADB_SERVER_PATH = @"C:\adb\adb.exe";
         private readonly string SENSOR_FILE_PARTH = "/sdcard/DataCollection/shark/";
         private readonly string PC_FILE_PATH = @"E:\";
         private readonly string WEB_PATH = @"localhost/getcurve.php";
@@ -27,15 +28,15 @@ namespace Car
         private SensorFusion _sf;
         private ParticleFilter _pf;
 
-        private string[] _accs;
-        private string[] _mags;
-        private string[] _gyrs;
-        private string[] _gpss;
-        private string[] _roadCurvatures;
-        //private string _accs;
-        //private string _mags;
-        //private string _gyrs;
-        //private string _gpss;
+        //private string[] _accs;
+        //private string[] _mags;
+        //private string[] _gyrs;
+        //private string[] _gpss;
+        //private string[] _roadCurvatures;
+        private string _accs;
+        private string _mags;
+        private string _gyrs;
+        private string _gpss;
         private long _startTimeStamp;
         private long _currentIMUTimeStamp;
         private long _currentGPSTimeStamp;
@@ -46,9 +47,6 @@ namespace Car
         private long _gpsTimeStamp;
         private Vector _gps;
         private Vector _twd97;
-
-        private int _counter = 0;
-        private int _gpsCounter = 0;
 
         private Vector _accE;
         
@@ -82,12 +80,13 @@ namespace Car
             _prevAvgTwd97 = new List<Vector>();
             _prevCurvatureDf = new List<double>();
             _pf.SetLogger(lbInfo);
+            ReadRoadData();
             // test use
-            _accs = File.ReadAllLines(PC_FILE_PATH + "Acc.txt");
-            _mags = File.ReadAllLines(PC_FILE_PATH + "Mag.txt");
-            _gyrs = File.ReadAllLines(PC_FILE_PATH + "Gyr.txt");
-            _gpss = File.ReadAllLines(PC_FILE_PATH + "GPS.txt");
-            _roadCurvatures = File.ReadAllLines(PC_FILE_PATH + "GPS3_cur.txt");
+            //_accs = File.ReadAllLines(PC_FILE_PATH + "Acc.txt");
+            //_mags = File.ReadAllLines(PC_FILE_PATH + "Mag.txt");
+            //_gyrs = File.ReadAllLines(PC_FILE_PATH + "Gyr.txt");
+            //_gpss = File.ReadAllLines(PC_FILE_PATH + "GPS.txt");
+            //_roadCurvatures = File.ReadAllLines(PC_FILE_PATH + "GPS3_cur.txt");
         }
 
         private void btnStart_Click(object sender, EventArgs e)
@@ -106,13 +105,18 @@ namespace Car
 
         private void timer1_Tick(object sender, EventArgs e)
         {
-            //DownloadData();
-            //LoadData();
-            string[] acc = _accs[_counter].Split(",".ToCharArray());
-            string[] mag = _mags[_counter].Split(",".ToCharArray());
-            string[] gyr = _gyrs[_counter].Split(",".ToCharArray());
-            string[] gps = _gpss[_gpsCounter].Split(",".ToCharArray());
-            string[] road = _roadCurvatures[_gpsCounter].Split(",".ToCharArray());
+            DownloadData();
+            LoadData();
+            //string[] acc = _accs[_counter].Split(",".ToCharArray());
+            //string[] mag = _mags[_counter].Split(",".ToCharArray());
+            //string[] gyr = _gyrs[_counter].Split(",".ToCharArray());
+            //string[] gps = _gpss[_gpsCounter].Split(",".ToCharArray());
+            //string[] road = _roadCurvatures[_gpsCounter].Split(",".ToCharArray());
+            string[] acc = _accs.Split(",".ToCharArray());
+            string[] mag = _mags.Split(",".ToCharArray());
+            string[] gyr = _gyrs.Split(",".ToCharArray());
+            string[] gps = _gpss.Split(",".ToCharArray());
+            
             for (int j = 0; j < 3; j++)
             {
                 _acc[j] = double.Parse(acc[j + 1]);
@@ -122,15 +126,14 @@ namespace Car
             _gps[0] = double.Parse(gps[1]);
             _gps[1] = double.Parse(gps[2]);
             _gps[2] = double.Parse(gps[4]);
-            _roadCurvature = double.Parse(road[3]);
             _currentIMUTimeStamp = long.Parse(acc[0]);
             _currentGPSTimeStamp = long.Parse(gps[0]);
             if(_gpsTimeStamp == 0 || _gpsTimeStamp < _currentGPSTimeStamp)
             {
                 double[] ret = GPSConverter.GetTWD97(_gps[0], _gps[1]);
-                //_roadCurvature = QueryRoadData(_gps[0], _gps[1]);
                 _twd97.X = ret[0];
                 _twd97.Y = ret[1];
+                _roadCurvature = QueryRoadData(_twd97.X, _twd97.Y);
                 AddTwd97(_twd97);
                 CalculateVelocity();
                 lbInfo.Items.Add(_twd97[0] + ", " + _twd97[1]);
@@ -146,9 +149,6 @@ namespace Car
                 CalculateEstimatedCurvature();
                 _IMUTimeStamp = _currentIMUTimeStamp;
             }
-            if (_IMUTimeStamp > _gpsTimeStamp)
-                _gpsCounter++;
-            _counter++;
             ShowResult();
         }
 
@@ -161,14 +161,15 @@ namespace Car
                 double lat = double.Parse(line[0]);
                 double lon = double.Parse(line[1]);
                 double curvature = double.Parse(line[2]);
-                _roadData.Add(new Tuple<double, double, double>(lat, lon, curvature));
+                double[] xy = GPSConverter.GetTWD97(lat, lon);
+                _roadData.Add(new Tuple<double, double, double>(xy[0], xy[1], curvature));
             }
         }
 
-        private double QueryRoadData(double lat, double lon)
+        private double QueryRoadData(double x, double y)
         {
-            double min = _roadData.Min(r => Math.Pow(r.Item1 - lat, 2) + Math.Pow(r.Item2 - lon, 2));
-            return _roadData.Find(r => Math.Pow(r.Item1 - lat, 2) + Math.Pow(r.Item2 - lon, 2) == min).Item3;
+            double min = _roadData.Min(r => Math.Pow(r.Item1 - x, 2) + Math.Pow(r.Item2 - y, 2));
+            return _roadData.Find(r => Math.Pow(r.Item1 - x, 2) + Math.Pow(r.Item2 - y, 2) == min).Item3;
         }
         
         private void AddTwd97(Vector twd97)
@@ -198,7 +199,7 @@ namespace Car
 
         private void DownloadData()
         {
-            AdbServer.StartServer(@"C:\adb\adb.exe", restartServerIfNewer: true);
+            AdbServer.StartServer(ADB_SERVER_PATH, restartServerIfNewer: true);
             var device = AdbClient.Instance.GetDevices().First();
             foreach (var filename in FILE_NAME)
             {
@@ -214,10 +215,10 @@ namespace Car
 
         private void LoadData()
         {
-            //_accs = File.ReadLines("Acc.txt").Last();
-            //_mags = File.ReadLines("Mag.txt").Last();
-            //_gyrs = File.ReadLines("Gyr.txt").Last();
-            //_gpss = File.ReadLines("GPS.txt").Last();
+            _accs = File.ReadLines(PC_FILE_PATH + "Acc.txt").Last();
+            _mags = File.ReadLines(PC_FILE_PATH + "Mag.txt").Last();
+            _gyrs = File.ReadLines(PC_FILE_PATH + "Gyr.txt").Last();
+            _gpss = File.ReadLines(PC_FILE_PATH + "GPS.txt").Last();
         }
 
         private void ShowResult()
