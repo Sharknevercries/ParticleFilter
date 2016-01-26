@@ -17,7 +17,7 @@ namespace Car
                     Value[i, j] = 0;
         }
 
-        public Matrix(Vector a, Vector b, Vector c)
+        public Matrix(Vector a, Vector b, Vector c) :this()
         {
             for(int i = 0; i < 3; i++)
             {
@@ -48,7 +48,7 @@ namespace Car
             Vector ret = new Vector(3);
             for (int i = 0; i < 3; i++)
                 for (int j = 0; j < 3; j++)
-                    ret[j] += a[i, j] * b[j];
+                    ret[i] += a[i, j] * b[j];
             return ret;
         }
         
