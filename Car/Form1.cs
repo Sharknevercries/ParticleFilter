@@ -322,7 +322,7 @@ namespace Car
             int lastIndex = _prevAvgTwd97.Count - 1;
             Vector prev = _prevAvgTwd97[lastIndex - 2];
             Vector cur = _prevAvgTwd97[lastIndex - 1];
-            Vector future = _prevAvgTwd97[lastIndex];
+            Vector future = _twd97;
             /*
             if (futureTwd97.Count >= POSITION_MOVING_AVERAGE_COUNT)
                 futureTwd97.RemoveAt(0);
