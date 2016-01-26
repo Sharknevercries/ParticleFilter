@@ -443,7 +443,7 @@
             this.groupBox6.Font = new System.Drawing.Font("新細明體", 12F);
             this.groupBox6.Location = new System.Drawing.Point(264, 12);
             this.groupBox6.Name = "groupBox6";
-            this.groupBox6.Size = new System.Drawing.Size(248, 452);
+            this.groupBox6.Size = new System.Drawing.Size(248, 513);
             this.groupBox6.TabIndex = 1;
             this.groupBox6.TabStop = false;
             this.groupBox6.Text = "結果";
@@ -453,7 +453,7 @@
             this.groupBox10.Controls.Add(this.lblResult);
             this.groupBox10.Location = new System.Drawing.Point(8, 392);
             this.groupBox10.Name = "groupBox10";
-            this.groupBox10.Size = new System.Drawing.Size(234, 77);
+            this.groupBox10.Size = new System.Drawing.Size(234, 114);
             this.groupBox10.TabIndex = 9;
             this.groupBox10.TabStop = false;
             this.groupBox10.Text = "預測轉彎結果";
@@ -462,7 +462,7 @@
             // 
             this.lblResult.AutoSize = true;
             this.lblResult.Font = new System.Drawing.Font("新細明體", 30F);
-            this.lblResult.Location = new System.Drawing.Point(66, 26);
+            this.lblResult.Location = new System.Drawing.Point(48, 40);
             this.lblResult.Name = "lblResult";
             this.lblResult.Size = new System.Drawing.Size(128, 40);
             this.lblResult.TabIndex = 8;
