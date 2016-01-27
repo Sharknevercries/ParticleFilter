@@ -15,7 +15,7 @@ using System.Net;
 namespace Car
 {
     public partial class Form1 : Form
-    {
+    {        
         private readonly string ADB_SERVER_PATH = @"C:\adb\adb.exe";
         private readonly string SENSOR_FILE_PARTH = "/sdcard/DataCollection/shark/";
         private readonly string PC_FILE_PATH = @"E:\";
@@ -79,6 +79,7 @@ namespace Car
             _prevTwd97 = new List<Vector>();
             _prevAvgTwd97 = new List<Vector>();
             _prevCurvatureDf = new List<double>();
+            _roadData = new List<Tuple<double, double, double>>();
             _pf.SetLogger(lbInfo);
             ReadRoadData();
             // test use
