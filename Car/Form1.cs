@@ -28,7 +28,7 @@ namespace Car
             Offline
         };
 
-        private readonly EstimationMode ESTI_MODE = EstimationMode.ParticleFilter;
+        private readonly EstimationMode ESTI_MODE = EstimationMode.GPS;
         private readonly DataMode DATA_MODE = DataMode.Offline;
 
         private readonly string ADB_SERVER_PATH = @"C:\adb\adb.exe";
@@ -36,7 +36,7 @@ namespace Car
         private readonly string PC_FILE_PATH = @"E:\";
         private readonly string WEB_PATH = @"localhost/getcurve.php";
         private readonly string[] FILE_NAME = { "Acc.txt", "Gyr.txt", "Mag.txt", "GPS.txt" };
-        private readonly int POSITION_MOVING_AVERAGE_COUNT = 5;
+        private readonly int POSITION_MOVING_AVERAGE_COUNT = 7;
         private readonly int CURVATURE_MOVING_AVERAGE_COUNT = 5;
         private readonly double SPEED_THRESHOLD = 15.0;
         private readonly double CURVATURE_THRESHOLD = 0.02;
@@ -87,14 +87,17 @@ namespace Car
         private List<double> _prevCurvatureDf;
         private double _curvatureDf;
 
+        private List<Vector> _prevTwdForVelocity;
+
         public Form1() 
         {
             InitializeComponent();
             _acc = new Vector(3);
             _mag = new Vector(3);
             _gyr = new Vector(3);
-            _gps = new Vector(3);
+            _gps = new Vector(2);
             _twd97 = new Vector(2);
+            _prevTwdForVelocity = new List<Vector>();
             _IMUTimeStamp = 0;
             _gpsTimeStamp = 0;
             _offline_imuCounter = 0;
@@ -115,7 +118,7 @@ namespace Car
                     _offline_accs = File.ReadAllLines(PC_FILE_PATH + "Acc.txt");
                     _offline_mags = File.ReadAllLines(PC_FILE_PATH + "Mag.txt");
                     _offline_gyrs = File.ReadAllLines(PC_FILE_PATH + "Gyr.txt");
-                    _offline_gpss = File.ReadAllLines(PC_FILE_PATH + "GPS.txt");
+                    _offline_gpss = File.ReadAllLines(PC_FILE_PATH + "HighGPS.txt");
                     _offline_roadCurvatures = File.ReadAllLines(PC_FILE_PATH + "GPS3_cur.txt");
                     break;
                 default:
@@ -160,8 +163,8 @@ namespace Car
                     acc = _offline_accs[_offline_imuCounter].Split(",".ToCharArray());
                     mag = _offline_mags[_offline_imuCounter].Split(",".ToCharArray());
                     gyr = _offline_gyrs[_offline_imuCounter].Split(",".ToCharArray());
-                    gps = _offline_gpss[_offline_gpsCounter].Split(",".ToCharArray());
-                    road = _offline_roadCurvatures[_offline_gpsCounter].Split(",".ToCharArray());
+                    gps = _offline_gpss[_offline_gpsCounter].Split(" ".ToCharArray());
+                    road = _offline_roadCurvatures[10].Split(",".ToCharArray());
                     break;
             }
 
@@ -173,7 +176,6 @@ namespace Car
             }
             _gps[0] = double.Parse(gps[1]);
             _gps[1] = double.Parse(gps[2]);
-            _gps[2] = double.Parse(gps[4]);
             _currentIMUTimeStamp = long.Parse(acc[0]);
             _currentGPSTimeStamp = long.Parse(gps[0]);
 
@@ -185,8 +187,8 @@ namespace Car
                 double[] ret = GPSConverter.GetTWD97(_gps[0], _gps[1]);
                 _twd97.X = ret[0];
                 _twd97.Y = ret[1];
-                AddTwd97(_twd97);
-                CalculateVelocity();
+                AddTwd97(_twd97, _currentGPSTimeStamp);
+                CalculateVelocity(_twd97, _currentGPSTimeStamp);
                 lbInfo.Items.Add("[GPS]: " + _twd97[0] + ", " + _twd97[1]);
                 _gpsTimeStamp = _currentGPSTimeStamp;
 
@@ -246,29 +248,40 @@ namespace Car
             return _roadData.Find(r => Math.Pow(r.Item1 - x, 2) + Math.Pow(r.Item2 - y, 2) == min).Item3;
         }
         
-        private void AddTwd97(Vector twd97)
+        private void AddTwd97(Vector twd97, long timestamp)
         {
             if (_prevTwd97.Count >= POSITION_MOVING_AVERAGE_COUNT)
                 _prevTwd97.RemoveAt(0);
             _prevTwd97.Add(new Vector(twd97));
             if (_prevAvgTwd97.Count >= 3)
                 _prevAvgTwd97.RemoveAt(0);
-            Vector avgTwd97 = new Vector(2);
+            Vector avgTwd97 = new Vector(3);
             avgTwd97.X = _prevTwd97.Average(twd => twd.X);
             avgTwd97.Y = _prevTwd97.Average(twd => twd.Y);
+            avgTwd97[2] = timestamp;
             _prevAvgTwd97.Add(avgTwd97);
         }
 
         /// <summary>
         /// 取GPS第一和第三新的座標位置去計算平均速率
         /// </summary>
-        private void CalculateVelocity()
+        private void CalculateVelocity(Vector twd97, long time)
         {
-            if (_prevAvgTwd97.Count < 3)
-                return;
-            double dx = _prevAvgTwd97[2].X - _prevAvgTwd97[0].X;
-            double dy = _prevAvgTwd97[2].Y - _prevAvgTwd97[0].Y;
-            _speed = Math.Sqrt(Math.Pow(dx, 2) + Math.Pow(dy, 2)) / 2.0 * 3600 / 1000.0;
+            Vector newTwdForVelocity = new Vector(3);
+            newTwdForVelocity.X = twd97.X;
+            newTwdForVelocity.Y = twd97.Y;
+            newTwdForVelocity[2] = time;
+            _prevTwdForVelocity.Add(newTwdForVelocity);
+            while(time - _prevTwdForVelocity[0][2] >= 2000)
+            {
+                _prevTwdForVelocity.RemoveAt(0);
+            }
+            int lastIndex = _prevTwdForVelocity.Count - 1;
+            double dx = _prevTwdForVelocity[lastIndex].X - _prevTwdForVelocity[0].X;
+            double dy = _prevTwdForVelocity[lastIndex].Y - _prevTwdForVelocity[0].Y;
+            double dt = _prevTwdForVelocity[lastIndex][2]- _prevTwdForVelocity[0][2];
+            _speed = Math.Sqrt(Math.Pow(dx, 2) + Math.Pow(dy, 2)) / (dt / 1000.0) * 3600 / 1000.0;
+            
         }        
 
         private void DownloadData()
@@ -301,7 +314,6 @@ namespace Car
             {
                 lblLatitude.Text = "" + _gps[0];
                 lblLongtitude.Text = "" + _gps[1];
-                lblV.Text = "" + _gps[2];
             }
             if (_acc != null)
             {
