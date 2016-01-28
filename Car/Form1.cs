@@ -140,7 +140,6 @@ namespace Car
 
         private void timer1_Tick(object sender, EventArgs e)
         {
-            bool receiveGPS = false;
             string[] acc = null;
             string[] mag = null;
             string[] gyr = null;
@@ -199,22 +198,18 @@ namespace Car
                 {
                     _roadCurvature = double.Parse(road[3]);
                 }
-                receiveGPS = true;
             }
 
             if (_IMUTimeStamp == 0 || _IMUTimeStamp < _currentIMUTimeStamp)
             {
                 if (ESTI_MODE == EstimationMode.ParticleFilter)
                 {
-                    if (receiveGPS)
-                    {
-                        CalculateEstimatedCurvature();
-                    }
                     _accE = _sf.Calculate(new Vector(_acc), new Vector(_gyr), new Vector(_mag), _currentIMUTimeStamp);
                     _pf.Update(_accE, _currentIMUTimeStamp, _twd97, _gpsTimeStamp);
                     // Current or Future ?
-                    _predictPosition = _pf.GetCurrentPosition();
-                    
+                    long time = _gpsTimeStamp + 1000 - _currentIMUTimeStamp;
+                    _predictPosition = _pf.GetEstimatedPosition(time);
+                    CalculateEstimatedCurvature();
                 }
                 if(ESTI_MODE == EstimationMode.GPS)
                 {
