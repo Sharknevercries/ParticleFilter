@@ -28,7 +28,7 @@ namespace Car
             Offline
         };
 
-        private readonly EstimationMode ESTI_MODE = EstimationMode.GPS;
+        private readonly EstimationMode ESTI_MODE = EstimationMode.ParticleFilter;
         private readonly DataMode DATA_MODE = DataMode.Offline;
 
         private readonly string ADB_SERVER_PATH = @"C:\adb\adb.exe";
@@ -37,6 +37,7 @@ namespace Car
         private readonly string WEB_PATH = @"localhost/getcurve.php";
         private readonly string[] FILE_NAME = { "Acc.txt", "Gyr.txt", "Mag.txt", "GPS.txt" };
         private readonly int POSITION_MOVING_AVERAGE_COUNT = 5;
+        private readonly int CURVATURE_MOVING_AVERAGE_COUNT = 5;
         private readonly double SPEED_THRESHOLD = 15.0;
         private readonly double CURVATURE_THRESHOLD = 0.02;
         private readonly long FUTURE_TIME = 200;
@@ -139,6 +140,7 @@ namespace Car
 
         private void timer1_Tick(object sender, EventArgs e)
         {
+            bool receiveGPS = false;
             string[] acc = null;
             string[] mag = null;
             string[] gyr = null;
@@ -186,7 +188,7 @@ namespace Car
                 _twd97.Y = ret[1];
                 AddTwd97(_twd97);
                 CalculateVelocity();
-                lbInfo.Items.Add(_twd97[0] + ", " + _twd97[1]);
+                lbInfo.Items.Add("[GPS]: " + _twd97[0] + ", " + _twd97[1]);
                 _gpsTimeStamp = _currentGPSTimeStamp;
 
                 if(DATA_MODE == DataMode.Online)
@@ -197,18 +199,27 @@ namespace Car
                 {
                     _roadCurvature = double.Parse(road[3]);
                 }
+                receiveGPS = true;
             }
 
             if (_IMUTimeStamp == 0 || _IMUTimeStamp < _currentIMUTimeStamp)
             {
                 if (ESTI_MODE == EstimationMode.ParticleFilter)
                 {
+                    if (receiveGPS)
+                    {
+                        CalculateEstimatedCurvature();
+                    }
                     _accE = _sf.Calculate(new Vector(_acc), new Vector(_gyr), new Vector(_mag), _currentIMUTimeStamp);
                     _pf.Update(_accE, _currentIMUTimeStamp, _twd97, _gpsTimeStamp);
                     // Current or Future ?
                     _predictPosition = _pf.GetCurrentPosition();
+                    
                 }
-                CalculateEstimatedCurvature();
+                if(ESTI_MODE == EstimationMode.GPS)
+                {
+                    CalculateEstimatedCurvature();
+                }
                 _IMUTimeStamp = _currentIMUTimeStamp;
             }
             if(DATA_MODE == DataMode.Offline)
@@ -376,10 +387,9 @@ namespace Car
 
         private void AddCurvatureDf(double curvatureDf)
         {
-            if (_prevCurvatureDf.Count >= POSITION_MOVING_AVERAGE_COUNT)
+            if (_prevCurvatureDf.Count >= CURVATURE_MOVING_AVERAGE_COUNT)
                 _prevCurvatureDf.RemoveAt(0);
             _prevCurvatureDf.Add(curvatureDf);
-            _curvatureDf = _prevCurvatureDf.Average();
         }
 
         private void CalculateEstimatedCurvature()
@@ -397,6 +407,7 @@ namespace Car
                 Vector future = _twd97;
                 _curvature = CalculateCurvature(prev, cur, future);
                 AddCurvatureDf(_curvature - _roadCurvature);
+                _curvatureDf = _prevCurvatureDf.Average();
             }
             
             if(ESTI_MODE == EstimationMode.ParticleFilter)
@@ -411,7 +422,7 @@ namespace Car
                 future.X = futureTwd97.Average(twd => twd.X);
                 future.Y = futureTwd97.Average(twd => twd.Y);
                 _curvature = CalculateCurvature(prev, cur, future);
-                AddCurvatureDf(_curvature - _roadCurvature);
+                _curvatureDf = _curvature - _roadCurvature;
             }            
         }
     }
