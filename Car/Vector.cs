@@ -81,18 +81,21 @@ namespace Car
         public void Normalization()
         {
             double factor = 1;
-            if (Length == 2)
+            switch (Length)
             {
-                factor = GetXYMagnitude();
-                X /= factor;
-                Y /= factor;
-            }
-            if (Length == 3)
-            {
-                factor = GetXYZMagnitude();
-                X /= factor;
-                Y /= factor;
-                Z /= factor;
+                case 2:
+                    factor = GetXYMagnitude();
+                    X /= factor;
+                    Y /= factor;
+                    break;
+                case 3:
+                    factor = GetXYZMagnitude();
+                    X /= factor;
+                    Y /= factor;
+                    Z /= factor;
+                    break;
+                default:
+                    throw new NotImplementedException();
             }
         }        
 

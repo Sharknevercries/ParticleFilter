@@ -68,7 +68,6 @@ namespace Car
             Matrix deltaMatrix = GetRotationMatrixFromVector(deltaVector);
             _gyroMatrix = _gyroMatrix % deltaMatrix;
             _gyroOrientation = GetOrientation(_gyroMatrix);
-            _prevTimeStamp = curTimeStamp;
 
             Vector fusedOrientation = new Vector(3);
             for (int i = 0; i < 3; i++)
@@ -92,6 +91,8 @@ namespace Car
             }
             _gyroMatrix = GetRotationMatrixFromOrientation(fusedOrientation);
             fusedOrientation.Value.CopyTo(_gyroOrientation.Value, 0);
+
+            _prevTimeStamp = curTimeStamp;
 
             return ret;
         }
@@ -166,7 +167,9 @@ namespace Car
             double q2 = v.Value[1];
             double q3 = v.Value[2];
             if (v.Length == 4)
+            {
                 q0 = v.Value[3];
+            }
             else
             {
                 q0 = 1 - (q1 * q1 + q2 * q2 + q3 * q3);

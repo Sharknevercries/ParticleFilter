@@ -70,8 +70,6 @@ namespace Car
             {
                 Value[index1, index2] = value;
             }
-
         }
-
     }
 }

@@ -28,7 +28,7 @@ namespace Car
             Offline
         };
 
-        private readonly EstimationMode ESTI_MODE = EstimationMode.GPS;
+        private readonly EstimationMode ESTI_MODE = EstimationMode.ParticleFilter;
         private readonly DataMode DATA_MODE = DataMode.Offline;
 
         private readonly string ADB_SERVER_PATH = @"C:\adb\adb.exe";
@@ -36,7 +36,7 @@ namespace Car
         private readonly string PC_FILE_PATH = @"E:\";
         private readonly string WEB_PATH = @"localhost/getcurve.php";
         private readonly string[] FILE_NAME = { "Acc.txt", "Gyr.txt", "Mag.txt", "GPS.txt" };
-        private readonly int POSITION_MOVING_AVERAGE_COUNT = 3;
+        private readonly int POSITION_MOVING_AVERAGE_COUNT = 5;
         private readonly int CURVATURE_MOVING_AVERAGE_COUNT = 5;
         private readonly double SPEED_THRESHOLD = 15.0;
         private readonly double CURVATURE_THRESHOLD = 0.02;
@@ -163,7 +163,7 @@ namespace Car
                     acc = _offline_accs[_offline_imuCounter].Split(",".ToCharArray());
                     mag = _offline_mags[_offline_imuCounter].Split(",".ToCharArray());
                     gyr = _offline_gyrs[_offline_imuCounter].Split(",".ToCharArray());
-                    gps = _offline_gpss[_offline_gpsCounter].Split(" ".ToCharArray());
+                    gps = _offline_gpss[_offline_gpsCounter].Split(",".ToCharArray());
                     road = _offline_roadCurvatures[10].Split(",".ToCharArray());
                     break;
             }
@@ -263,23 +263,23 @@ namespace Car
         }
 
         /// <summary>
-        /// 取GPS第一和第三新的座標位置去計算平均速率
+        /// 取GPS間隔2s座標位置去計算平均速率
         /// </summary>
-        private void CalculateVelocity(Vector twd97, long time)
+        private void CalculateVelocity(Vector twd97, long timestamp)
         {
             Vector newTwdForVelocity = new Vector(3);
             newTwdForVelocity.X = twd97.X;
             newTwdForVelocity.Y = twd97.Y;
-            newTwdForVelocity[2] = time;
+            newTwdForVelocity[2] = timestamp;
             _prevTwdForVelocity.Add(newTwdForVelocity);
-            while(time - _prevTwdForVelocity[0][2] >= 2000)
+            while(timestamp - _prevTwdForVelocity[0][2] >= 2000)
             {
                 _prevTwdForVelocity.RemoveAt(0);
             }
             int lastIndex = _prevTwdForVelocity.Count - 1;
             double dx = _prevTwdForVelocity[lastIndex].X - _prevTwdForVelocity[0].X;
             double dy = _prevTwdForVelocity[lastIndex].Y - _prevTwdForVelocity[0].Y;
-            double dt = _prevTwdForVelocity[lastIndex][2]- _prevTwdForVelocity[0][2];
+            double dt = _prevTwdForVelocity[lastIndex][2] - _prevTwdForVelocity[0][2];
             _speed = Math.Sqrt(Math.Pow(dx, 2) + Math.Pow(dy, 2)) / (dt / 1000.0) * 3600 / 1000.0;
             
         }        

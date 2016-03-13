@@ -72,7 +72,7 @@ namespace Car
             }
             foreach(var p in futureParticles)
             {
-                p.Move(_prevAccE, timeEclipse);
+                p.Move(_prevAccE, timeEclipse / 1000.0);
             }
             ret.X = futureParticles.Average(p => p.X);
             ret.Y = futureParticles.Average(p => p.Y);
@@ -145,11 +145,19 @@ namespace Car
     {
         public double X;
         public double Y;
+
+        /// <summary>
+        /// m/s
+        /// </summary>
         public double Vx;
+
+        /// <summary>
+        /// m/s
+        /// </summary>
         public double Vy;
 
         /// <summary>
-        /// This value dosen't do anything.
+        /// This value dosen't do anything. For the use of future edition.
         /// </summary>
         public double Weight;
 
