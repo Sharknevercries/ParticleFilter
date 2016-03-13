@@ -36,7 +36,7 @@ namespace Car
         private readonly string PC_FILE_PATH = @"E:\";
         private readonly string WEB_PATH = @"localhost/getcurve.php";
         private readonly string[] FILE_NAME = { "Acc.txt", "Gyr.txt", "Mag.txt", "GPS.txt" };
-        private readonly int POSITION_MOVING_AVERAGE_COUNT = 7;
+        private readonly int POSITION_MOVING_AVERAGE_COUNT = 3;
         private readonly int CURVATURE_MOVING_AVERAGE_COUNT = 5;
         private readonly double SPEED_THRESHOLD = 15.0;
         private readonly double CURVATURE_THRESHOLD = 0.02;
@@ -118,7 +118,7 @@ namespace Car
                     _offline_accs = File.ReadAllLines(PC_FILE_PATH + "Acc.txt");
                     _offline_mags = File.ReadAllLines(PC_FILE_PATH + "Mag.txt");
                     _offline_gyrs = File.ReadAllLines(PC_FILE_PATH + "Gyr.txt");
-                    _offline_gpss = File.ReadAllLines(PC_FILE_PATH + "HighGPS.txt");
+                    _offline_gpss = File.ReadAllLines(PC_FILE_PATH + "GPS.txt");
                     _offline_roadCurvatures = File.ReadAllLines(PC_FILE_PATH + "GPS3_cur.txt");
                     break;
                 default:
@@ -196,7 +196,7 @@ namespace Car
                 {
                     _roadCurvature = QueryRoadData(_twd97.X, _twd97.Y);
                 }
-                else
+                if(DATA_MODE == DataMode.Offline)
                 {
                     _roadCurvature = double.Parse(road[3]);
                 }

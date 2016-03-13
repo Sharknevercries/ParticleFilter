@@ -45,7 +45,7 @@ namespace Car
             }
 
             MoveParticles(accE, IMUTimeStamp - _prevTimeStamp);
-            Resample();
+            //Resample();
             _prevTimeStamp = IMUTimeStamp;
             _prevAccE = new Vector(accE);
         }      
@@ -80,21 +80,28 @@ namespace Car
         }
 
         /// <summary>
-        /// Remove particles which are outside gps eps and supply up to MAX_SIZE.
+        /// Remove particles which are outside gps eps and supply particles up to MAX_SIZE.
         /// </summary>
         /// <param name="gps"></param>
         private void TrimParticles(Vector gps)
         {
-            double avgx = _particles.Average(p => p.Vx);
-            double avgy = _particles.Average(p => p.Vy);
             _particles.RemoveAll(t => Math.Pow((t.X - gps.X), 2) + Math.Pow((t.Y - gps.Y), 2) > Math.Pow(GPS_EPS, 2));
             _logger.Items.Add(_particles.Count);
-            while (_particles.Count < MAX_SIZE)
+            if(_particles.Count == 0)
             {
-                Particle p = new Particle(gps);
-                p.Vx = (avgx + avgx * ContinuousUniform.Sample(-V_EPS, V_EPS)) * ATTENUATION;
-                p.Vy = (avgy + avgy * ContinuousUniform.Sample(-V_EPS, V_EPS)) * ATTENUATION;
-                _particles.Add(p);
+                while (_particles.Count < MAX_SIZE)
+                {
+                    _particles.Add(new Particle(gps));
+                }
+            }
+            else
+            {
+                int remain = _particles.Count;
+                while(_particles.Count < MAX_SIZE)
+                {
+                    int idx = (int)Math.Floor(ContinuousUniform.Sample(0, remain - 1e-9));
+                    _particles.Add(new Particle(_particles[idx]));
+                }
             }
         }
         
