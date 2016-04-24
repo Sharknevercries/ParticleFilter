@@ -36,11 +36,14 @@ namespace Car
         private readonly string PC_FILE_PATH = @"E:\";
         private readonly string WEB_PATH = @"localhost/getcurve.php";
         private readonly string[] FILE_NAME = { "Acc.txt", "Gyr.txt", "Mag.txt", "GPS.txt" };
-        private readonly int POSITION_MOVING_AVERAGE_COUNT = 5;
-        private readonly int CURVATURE_MOVING_AVERAGE_COUNT = 5;
+        private readonly int GPS_CURVATURE_MOVING_AVERAGE_COUNT = 5;
+        private readonly int GPS_VELOCITY_POSITION_MOVING_AVERAGE_COUNT = 3;
+        private readonly int GPS_CURVATURE_POSITION_MOVING_AVERAGE_COUNT = 5;
+        private readonly int PF_POSITION_MOVING_AVERAGE_COUNT = 7;
+        private readonly int PF_CURVATURE_MOVING_AVERAGE_COUNT = 9;
         private readonly double SPEED_THRESHOLD = 15.0;
         private readonly double CURVATURE_THRESHOLD = 0.02;
-        private readonly long FUTURE_TIME = 200;
+        private readonly long FUTURE_TIME = 300;
         private SensorFusion _sf;
         private ParticleFilter _pf;
 
@@ -75,9 +78,15 @@ namespace Car
         
         private Vector _predictPosition;
 
-        private List<Vector> _prevTwd97;
-        private List<Vector> _prevAvgTwd97;
+        private List<Vector> _prevTwdForCurvature;
+        private List<Vector> _prevAvgTwdForCurvature;
+        
+        private List<Vector> _prevTwdForVelocity;
+        private List<Vector> _prevAvgTwdForVelocity;
         private double _speed;
+
+        private List<Vector> _prevPFTwd;
+        private List<Vector> _prevPFAvgTwd;
 
         private double _curvature;
 
@@ -86,8 +95,7 @@ namespace Car
 
         private List<double> _prevCurvatureDf;
         private double _curvatureDf;
-
-        private List<Vector> _prevTwdForVelocity;
+        
 
         public Form1() 
         {
@@ -98,15 +106,18 @@ namespace Car
             _gps = new Vector(2);
             _twd97 = new Vector(2);
             _prevTwdForVelocity = new List<Vector>();
+            _prevAvgTwdForVelocity = new List<Vector>();
             _IMUTimeStamp = 0;
             _gpsTimeStamp = 0;
             _offline_imuCounter = 0;
             _offline_gpsCounter = 0;
             _sf = new SensorFusion();
             _pf = new ParticleFilter();
-            _prevTwd97 = new List<Vector>();
-            _prevAvgTwd97 = new List<Vector>();
+            _prevTwdForCurvature = new List<Vector>();
+            _prevAvgTwdForCurvature = new List<Vector>();
             _prevCurvatureDf = new List<double>();
+            _prevPFTwd = new List<Vector>();
+            _prevPFAvgTwd = new List<Vector>();
             _roadData = new List<Tuple<double, double, double>>();
             _pf.SetLogger(lbInfo);
             switch (DATA_MODE)
@@ -187,9 +198,10 @@ namespace Car
                 double[] ret = GPSConverter.GetTWD97(_gps[0], _gps[1]);
                 _twd97.X = ret[0];
                 _twd97.Y = ret[1];
-                AddTwd97(_twd97, _currentGPSTimeStamp);
-                CalculateVelocity(_twd97, _currentGPSTimeStamp);
-                lbInfo.Items.Add("[GPS]: " + _twd97[0] + ", " + _twd97[1]);
+                AddTwdForCurvature(_twd97);
+                AddTwdForVelocity(_twd97, _currentGPSTimeStamp);
+                CalculateVelocity();
+                lbInfo.Items.Add("[GPS][" + (_currentGPSTimeStamp - _startTimeStamp) + "]: " + _twd97[0] + ", " + _twd97[1]);
                 _gpsTimeStamp = _currentGPSTimeStamp;
 
                 if(DATA_MODE == DataMode.Online)
@@ -204,27 +216,42 @@ namespace Car
 
             if (_IMUTimeStamp == 0 || _IMUTimeStamp < _currentIMUTimeStamp)
             {
+                if (ESTI_MODE == EstimationMode.GPS)
+                {
+                    CalculateEstimatedCurvature();
+                }
+
                 if (ESTI_MODE == EstimationMode.ParticleFilter)
                 {
                     _accE = _sf.Calculate(new Vector(_acc), new Vector(_gyr), new Vector(_mag), _currentIMUTimeStamp);
-                    _pf.Update(_accE, _currentIMUTimeStamp, _twd97, _gpsTimeStamp);
+
+                    // 使用GPS觀察前的預估位置
+                    Vector feedback = null;
+                    _pf.Update(_accE, _currentIMUTimeStamp, _twd97, _gpsTimeStamp, out feedback);
+
+                    if(feedback != null)
+                    {
+                        AddPFTwd(feedback);
+                        CalculatePFCurvature();
+                    }
+
                     // Current or Future ?
                     long time = _gpsTimeStamp + 1000 - _currentIMUTimeStamp;
-                    _predictPosition = _pf.GetEstimatedPosition(time);
+                    //_predictPosition = _pf.GetCurrentPosition();
+                    _predictPosition = _pf.GetEstimatedPosition(FUTURE_TIME);
                     CalculateEstimatedCurvature();
                 }
-                if(ESTI_MODE == EstimationMode.GPS)
-                {
-                    CalculateEstimatedCurvature();
-                }
+                                
                 _IMUTimeStamp = _currentIMUTimeStamp;
             }
+
             if(DATA_MODE == DataMode.Offline)
             {
                 if (_IMUTimeStamp > _gpsTimeStamp)
                     _offline_gpsCounter++;
                 _offline_imuCounter++;
             }
+
             ShowResult();
         }
 
@@ -248,40 +275,57 @@ namespace Car
             return _roadData.Find(r => Math.Pow(r.Item1 - x, 2) + Math.Pow(r.Item2 - y, 2) == min).Item3;
         }
         
-        private void AddTwd97(Vector twd97, long timestamp)
+        private void AddTwdForCurvature(Vector twd97)
         {
-            if (_prevTwd97.Count >= POSITION_MOVING_AVERAGE_COUNT)
-                _prevTwd97.RemoveAt(0);
-            _prevTwd97.Add(new Vector(twd97));
-            if (_prevAvgTwd97.Count >= 3)
-                _prevAvgTwd97.RemoveAt(0);
-            Vector avgTwd97 = new Vector(3);
-            avgTwd97.X = _prevTwd97.Average(twd => twd.X);
-            avgTwd97.Y = _prevTwd97.Average(twd => twd.Y);
-            avgTwd97[2] = timestamp;
-            _prevAvgTwd97.Add(avgTwd97);
+            if (_prevTwdForCurvature.Count >= GPS_CURVATURE_POSITION_MOVING_AVERAGE_COUNT)
+                _prevTwdForCurvature.RemoveAt(0);
+            _prevTwdForCurvature.Add(new Vector(twd97));
+            if (_prevAvgTwdForCurvature.Count >= 3)
+                _prevAvgTwdForCurvature.RemoveAt(0);
+            Vector avgTwd97 = new Vector(2);
+            avgTwd97.X = _prevTwdForCurvature.Average(twd => twd.X);
+            avgTwd97.Y = _prevTwdForCurvature.Average(twd => twd.Y);
+            _prevAvgTwdForCurvature.Add(avgTwd97);
         }
 
-        /// <summary>
-        /// 取GPS間隔2s座標位置去計算平均速率
-        /// </summary>
-        private void CalculateVelocity(Vector twd97, long timestamp)
+        private void AddTwdForVelocity(Vector twd97, long timestamp)
         {
-            Vector newTwdForVelocity = new Vector(3);
-            newTwdForVelocity.X = twd97.X;
-            newTwdForVelocity.Y = twd97.Y;
-            newTwdForVelocity[2] = timestamp;
-            _prevTwdForVelocity.Add(newTwdForVelocity);
-            while(timestamp - _prevTwdForVelocity[0][2] >= 2000)
-            {
+            if (_prevTwdForVelocity.Count >= GPS_VELOCITY_POSITION_MOVING_AVERAGE_COUNT)
                 _prevTwdForVelocity.RemoveAt(0);
-            }
-            int lastIndex = _prevTwdForVelocity.Count - 1;
-            double dx = _prevTwdForVelocity[lastIndex].X - _prevTwdForVelocity[0].X;
-            double dy = _prevTwdForVelocity[lastIndex].Y - _prevTwdForVelocity[0].Y;
-            double dt = _prevTwdForVelocity[lastIndex][2] - _prevTwdForVelocity[0][2];
+            _prevTwdForVelocity.Add(new Vector(twd97));
+            // 計算速度採第一與第三個位置的平均
+            if (_prevAvgTwdForVelocity.Count >= GPS_VELOCITY_POSITION_MOVING_AVERAGE_COUNT)
+                _prevAvgTwdForVelocity.RemoveAt(0);
+            Vector avgTwd97 = new Vector(3);
+            avgTwd97.X = _prevTwdForVelocity.Average(twd => twd.X);
+            avgTwd97.Y = _prevTwdForVelocity.Average(twd => twd.Y);
+            // 時間戳記
+            avgTwd97[2] = timestamp;
+            _prevAvgTwdForVelocity.Add(avgTwd97);
+        }
+
+        private void AddPFTwd(Vector twd97)
+        {
+            if (_prevPFTwd.Count >= PF_POSITION_MOVING_AVERAGE_COUNT)
+                _prevPFTwd.RemoveAt(0);
+            _prevPFTwd.Add(new Vector(twd97));
+            if (_prevPFTwd.Count >= 3)
+                _prevPFAvgTwd.RemoveAt(0);
+            Vector avgTwd = new Vector(2);
+            avgTwd.X = _prevPFTwd.Average(twd => twd.X);
+            avgTwd.Y = _prevPFTwd.Average(twd => twd.Y);
+            _prevPFAvgTwd.Add(avgTwd);
+        }
+
+        private void CalculateVelocity()
+        {
+            if (_prevAvgTwdForVelocity.Count < GPS_VELOCITY_POSITION_MOVING_AVERAGE_COUNT)
+                return;
+            int lastIndex = _prevAvgTwdForVelocity.Count - 1;
+            double dx = _prevAvgTwdForVelocity[lastIndex].X - _prevAvgTwdForVelocity[0].X;
+            double dy = _prevAvgTwdForVelocity[lastIndex].Y - _prevAvgTwdForVelocity[0].Y;
+            double dt = _prevAvgTwdForVelocity[lastIndex][2] - _prevAvgTwdForVelocity[0][2];
             _speed = Math.Sqrt(Math.Pow(dx, 2) + Math.Pow(dy, 2)) / (dt / 1000.0) * 3600 / 1000.0;
-            
         }        
 
         private void DownloadData()
@@ -361,7 +405,7 @@ namespace Car
                 {
                     lblResult.Text = "Right Turn";
                 }
-                else if (_curvatureDf <= - CURVATURE_THRESHOLD)
+                else if (_curvatureDf <= -CURVATURE_THRESHOLD)
                 {
                     lblResult.Text = "Left Turn";
                 }
@@ -392,44 +436,75 @@ namespace Car
             return curvature;
         }
 
-        private void AddCurvatureDf(double curvatureDf)
+        private void CalculateGPSCurvature()
         {
-            if (_prevCurvatureDf.Count >= CURVATURE_MOVING_AVERAGE_COUNT)
+            if (_prevAvgTwdForCurvature.Count < 3)
+                return;
+
+            int lastIndex = _prevAvgTwdForCurvature.Count;
+            // GPS 預測模式逕自使用已知資料計算曲率
+            Vector a = _prevAvgTwdForCurvature[lastIndex - 3];
+            Vector b = _prevAvgTwdForCurvature[lastIndex - 2];
+            Vector c = _prevAvgTwdForCurvature[lastIndex - 1];
+            _curvature = CalculateCurvature(a, b, c);
+            if (_prevCurvatureDf.Count >= GPS_CURVATURE_MOVING_AVERAGE_COUNT)
                 _prevCurvatureDf.RemoveAt(0);
-            _prevCurvatureDf.Add(curvatureDf);
+            _prevCurvatureDf.Add(_curvature - _roadCurvature);
+            _curvatureDf = _prevCurvatureDf.Average();
+        }
+
+        private void CalculatePFCurvature()
+        {
+            if (_prevPFAvgTwd.Count < 3)
+                return;
+
+            int lastIndex = _prevPFAvgTwd.Count;
+            Vector a = _prevPFAvgTwd[lastIndex - 3];
+            Vector b = _prevPFAvgTwd[lastIndex - 2];
+            Vector c = _prevPFAvgTwd[lastIndex - 1];
+            double tmpCurvature = CalculateCurvature(a, b, c);
+            if (_prevCurvatureDf.Count >= PF_CURVATURE_MOVING_AVERAGE_COUNT)
+                _prevCurvatureDf.RemoveAt(0);
+            _prevCurvatureDf.Add(tmpCurvature - _roadCurvature);
         }
 
         private void CalculateEstimatedCurvature()
         {
-            if (_prevAvgTwd97.Count < 3)
-                return ;
-
-            int lastIndex = _prevAvgTwd97.Count - 1;
-
             if (ESTI_MODE == EstimationMode.GPS)
-            {                
-                Vector prev = _prevAvgTwd97[lastIndex - 2];
-                Vector cur = _prevAvgTwd97[lastIndex - 1];
-                // Not using currentAvgTwd97 to calculate curvature
-                Vector future = _twd97;
-                _curvature = CalculateCurvature(prev, cur, future);
-                AddCurvatureDf(_curvature - _roadCurvature);
-                _curvatureDf = _prevCurvatureDf.Average();
+            {
+                CalculateGPSCurvature();
             }
             
             if(ESTI_MODE == EstimationMode.ParticleFilter)
             {
-                List<Vector> futureTwd97 = new List<Vector>(_prevTwd97);
-                Vector prev = _prevAvgTwd97[lastIndex - 1];
-                Vector cur = _prevAvgTwd97[lastIndex];
-                Vector future = _predictPosition;
-                if (futureTwd97.Count >= POSITION_MOVING_AVERAGE_COUNT)
-                    futureTwd97.RemoveAt(0);
-                futureTwd97.Add(_predictPosition);
-                future.X = futureTwd97.Average(twd => twd.X);
-                future.Y = futureTwd97.Average(twd => twd.Y);
-                _curvature = CalculateCurvature(prev, cur, future);
-                _curvatureDf = _curvature - _roadCurvature;
+                List<Vector> futureTwd = new List<Vector>(_prevPFTwd);
+                List<Vector> futureAvgTwd = new List<Vector>(_prevPFAvgTwd);
+                List<double> futureCurvatureDf = new List<double>(_prevCurvatureDf);
+
+                if (futureTwd.Count >= PF_POSITION_MOVING_AVERAGE_COUNT)
+                    futureTwd.RemoveAt(0);
+                futureTwd.Add(new Vector(_predictPosition));
+
+                Vector tmp = new Vector(2);
+                tmp.X = futureTwd.Average(twd => twd.X);
+                tmp.Y = futureTwd.Average(twd => twd.Y);
+                if (futureAvgTwd.Count >= 3)
+                    futureAvgTwd.RemoveAt(0);
+                futureAvgTwd.Add(tmp);
+
+                if (futureAvgTwd.Count < 3)
+                    return;
+
+                int lastIndex = futureAvgTwd.Count;
+                Vector a = futureAvgTwd[lastIndex - 3];
+                Vector b = futureAvgTwd[lastIndex - 2];
+                Vector c = futureAvgTwd[lastIndex - 1];
+                _curvature = CalculateCurvature(a, b, c);
+                if (futureCurvatureDf.Count >= PF_CURVATURE_MOVING_AVERAGE_COUNT)
+                    futureCurvatureDf.RemoveAt(0);
+                futureCurvatureDf.Add(_curvature - _roadCurvature);
+
+                _curvatureDf = futureCurvatureDf.Average();
             }            
         }
     }

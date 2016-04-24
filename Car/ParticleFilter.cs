@@ -9,12 +9,12 @@ namespace Car
 {
     class ParticleFilter
     {
-        public const int MAX_SIZE = 1000;
+        public const int MAX_SIZE = 3000;
         public const double ANG_EPS = Math.PI / 3;
         public const double V_EPS = 0.15;
         public const double ACC_EPS = 0.3;
-        public const double GPS_EPS = 10;
-        public const double ATTENUATION = 0.75;
+        public const double GPS_EPS = 5;
+        public const double ATTENUATION = 0.50;
 
         private long _prevTimeStamp;
         private List<Particle> _particles;
@@ -29,23 +29,29 @@ namespace Car
             _prevTimeStamp = 0;
         }
 
-        public void Update(Vector accE, long IMUTimeStamp, Vector gps = null, long gpsTimeStamp = 0)
+        public void Update(Vector accE, long IMUTimeStamp, Vector gps, long gpsTimeStamp, out Vector feedback)
         {
+            feedback = null;
+
             if (_prevTimeStamp == 0)
             {
                 _prevTimeStamp = IMUTimeStamp;
+                
                 return;
             }
 
             if(gps != null && gpsTimeStamp < IMUTimeStamp)
             {
                 MoveParticles(accE, gpsTimeStamp - _prevTimeStamp);
+
+                feedback = GetCurrentPosition();
+
                 TrimParticles(gps);
                 _prevTimeStamp = gpsTimeStamp;
             }
 
             MoveParticles(accE, IMUTimeStamp - _prevTimeStamp);
-            //Resample();
+            Resample();
             _prevTimeStamp = IMUTimeStamp;
             _prevAccE = new Vector(accE);
         }      
@@ -85,24 +91,31 @@ namespace Car
         /// <param name="gps"></param>
         private void TrimParticles(Vector gps)
         {
-            _particles.RemoveAll(t => Math.Pow((t.X - gps.X), 2) + Math.Pow((t.Y - gps.Y), 2) > Math.Pow(GPS_EPS, 2));
-            _logger.Items.Add(_particles.Count);
-            if(_particles.Count == 0)
+            List<Particle> _newParticles = new List<Particle>(_particles);
+            _newParticles.RemoveAll(t => Math.Pow((t.X - gps.X), 2) + Math.Pow((t.Y - gps.Y), 2) > Math.Pow(GPS_EPS, 2));
+            _logger.Items.Add(_newParticles.Count);
+            if(_newParticles.Count == 0)
             {
-                while (_particles.Count < MAX_SIZE)
+                while (_newParticles.Count < MAX_SIZE)
                 {
-                    _particles.Add(new Particle(gps));
+                    _newParticles.Add(new Particle(gps));
+                }
+                for (int i = 0; i < MAX_SIZE; i++)
+                {
+                    _newParticles[i].Vx = _particles[i].Vx * ATTENUATION;
+                    _newParticles[i].Vy = _particles[i].Vy * ATTENUATION;
                 }
             }
             else
             {
-                int remain = _particles.Count;
-                while(_particles.Count < MAX_SIZE)
+                int remain = _newParticles.Count;
+                while(_newParticles.Count < MAX_SIZE)
                 {
                     int idx = (int)Math.Floor(ContinuousUniform.Sample(0, remain - 1e-9));
-                    _particles.Add(new Particle(_particles[idx]));
+                    _newParticles.Add(new Particle(_newParticles[idx]));
                 }
             }
+            _particles = _newParticles;
         }
         
         private void MoveParticles(Vector accE, long timeEclipse)
@@ -187,7 +200,7 @@ namespace Car
         /// <summary>
         /// Move the particle.
         /// </summary>
-        /// <param name="timeEclipse">ms</param>
+        /// <param name="timeEclipse">s</param>
         public void Move(Vector acc, double timeEclipse)
         {
             double magnitude = acc.GetXYMagnitude();
@@ -195,8 +208,6 @@ namespace Car
             double rand_magitude = magnitude + magnitude * ContinuousUniform.Sample(-ParticleFilter.ACC_EPS, ParticleFilter.ACC_EPS);
             double ax = Math.Cos(theta) * rand_magitude;
             double ay = Math.Sin(theta) * rand_magitude;
-            //double ax = acc.X;
-            //double ay = acc.Y;
             X += (2 * Vx + ax) * timeEclipse / 2.0;
             Y += (2 * Vy + ay) * timeEclipse / 2.0;
             Vx += ax * timeEclipse;

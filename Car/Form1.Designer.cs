@@ -681,13 +681,13 @@
             this.lbInfo.ItemHeight = 12;
             this.lbInfo.Location = new System.Drawing.Point(518, 12);
             this.lbInfo.Name = "lbInfo";
-            this.lbInfo.Size = new System.Drawing.Size(267, 412);
+            this.lbInfo.Size = new System.Drawing.Size(529, 412);
             this.lbInfo.TabIndex = 0;
             // 
             // btnStart
             // 
             this.btnStart.Font = new System.Drawing.Font("新細明體", 12F);
-            this.btnStart.Location = new System.Drawing.Point(791, 12);
+            this.btnStart.Location = new System.Drawing.Point(1053, 12);
             this.btnStart.Name = "btnStart";
             this.btnStart.Size = new System.Drawing.Size(150, 81);
             this.btnStart.TabIndex = 2;
@@ -699,7 +699,7 @@
             // 
             this.btnStop.Enabled = false;
             this.btnStop.Font = new System.Drawing.Font("新細明體", 12F);
-            this.btnStop.Location = new System.Drawing.Point(791, 99);
+            this.btnStop.Location = new System.Drawing.Point(1053, 99);
             this.btnStop.Name = "btnStop";
             this.btnStop.Size = new System.Drawing.Size(150, 81);
             this.btnStop.TabIndex = 3;
@@ -716,7 +716,7 @@
             // 
             this.label21.AutoSize = true;
             this.label21.Font = new System.Drawing.Font("新細明體", 12F);
-            this.label21.Location = new System.Drawing.Point(854, 479);
+            this.label21.Location = new System.Drawing.Point(1116, 479);
             this.label21.Name = "label21";
             this.label21.Size = new System.Drawing.Size(85, 16);
             this.label21.TabIndex = 21;
@@ -726,7 +726,7 @@
             // 
             this.lblEclipseTime.AutoSize = true;
             this.lblEclipseTime.Font = new System.Drawing.Font("新細明體", 12F);
-            this.lblEclipseTime.Location = new System.Drawing.Point(854, 502);
+            this.lblEclipseTime.Location = new System.Drawing.Point(1116, 502);
             this.lblEclipseTime.Name = "lblEclipseTime";
             this.lblEclipseTime.Size = new System.Drawing.Size(16, 16);
             this.lblEclipseTime.TabIndex = 21;
@@ -736,7 +736,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(951, 534);
+            this.ClientSize = new System.Drawing.Size(1213, 534);
             this.Controls.Add(this.lblEclipseTime);
             this.Controls.Add(this.label21);
             this.Controls.Add(this.lbInfo);

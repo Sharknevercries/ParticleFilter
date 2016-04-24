@@ -29,7 +29,7 @@ namespace Car
             double nu = a / Math.Pow((1 - (Math.Pow(e, 2)) * (Math.Pow(Math.Sin(lat), 2))), 0.5);
             double p = lon - long0;
 
-            double A = a * (1 - n + (5 / 4) * (Math.Pow(n, 2) - Math.Pow(n, 3)) + (81 / 64) * (Math.Pow(n, 4) - Math.Pow(n, 5)));
+            double A = a * (1 - n + (5 / 4.0) * (Math.Pow(n, 2) - Math.Pow(n, 3)) + (81 / 64.0) * (Math.Pow(n, 4) - Math.Pow(n, 5)));
             double B = (3 * a * n / 2.0) * (1 - n + (7 / 8.0) * (Math.Pow(n, 2) - Math.Pow(n, 3)) + (55 / 64.0) * (Math.Pow(n, 4) - Math.Pow(n, 5)));
             double C = (15 * a * (Math.Pow(n, 2)) / 16.0) * (1 - n + (3 / 4.0) * (Math.Pow(n, 2) - Math.Pow(n, 3)));
             double D = (35 * a * (Math.Pow(n, 3)) / 48.0) * (1 - n + (11 / 16.0) * (Math.Pow(n, 2) - Math.Pow(n, 3)));
